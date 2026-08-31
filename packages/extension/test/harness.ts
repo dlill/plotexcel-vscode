@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -39,14 +39,39 @@ export interface StubState {
   isTrusted?: boolean;
 }
 
-/** Install the stub. Safe to call repeatedly. */
+/**
+ * Install the stub. Safe to call repeatedly, and from several processes at once.
+ *
+ * `node --test` runs the test files concurrently, and every one of them calls
+ * this on the way in. A plain copy truncates the destination before it refills
+ * it, so a sibling process can `require` an empty file and come away with a
+ * module that has no `__recorder` — which surfaces as `recorder` being
+ * undefined in a `before` hook, intermittently, and never twice in a row. So:
+ * write only when the content differs, and swap it in with a rename, which is
+ * atomic. `tools/load-extension-sources.mjs` writes a cruder stub to the same
+ * place, and this is what takes it back over.
+ */
 export function installStub(): void {
   mkdirSync(stubHome, { recursive: true });
-  writeFileSync(
+
+  writeIfChanged(
     path.join(stubHome, 'package.json'),
     `${JSON.stringify({ name: 'vscode', version: '0.0.0-stub', main: 'index.cjs' }, undefined, 2)}\n`,
   );
-  copyFileSync(stubSource, path.join(stubHome, 'index.cjs'));
+  writeIfChanged(path.join(stubHome, 'index.cjs'), readFileSync(stubSource, 'utf8'));
+}
+
+function writeIfChanged(destination: string, contents: string): void {
+  try {
+    if (readFileSync(destination, 'utf8') === contents) return;
+  } catch {
+    // Not there, or unreadable. Either way it is about to be written.
+  }
+
+  // Unique per process, so two of them racing cannot share a temporary file.
+  const temporary = `${destination}.${process.pid}.tmp`;
+  writeFileSync(temporary, contents);
+  renameSync(temporary, destination);
 }
 
 export async function loadVscode(): Promise<{ recorder: Recorder; state: StubState }> {
