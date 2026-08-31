@@ -58,8 +58,12 @@ export interface CreateZipOptions {
 /** Build a ZIP archive in memory. */
 export function createZip(entries: readonly ZipInput[], options: CreateZipOptions = {}): Buffer {
   const stamp = dosTimestamp(options.modifiedAt ?? new Date(Date.UTC(1980, 0, 1)));
-  const locals: Buffer[] = [];
-  const centrals: Buffer[] = [];
+  // Uint8Array, not Buffer: an entry's data arrives as a Uint8Array — that is
+  // what the browser's writer and the workbook parts both produce — and only
+  // the compressed branch comes back from zlib as a Buffer. Buffer.concat
+  // takes either.
+  const locals: Uint8Array[] = [];
+  const centrals: Uint8Array[] = [];
   let offset = 0;
 
   if (entries.length > 0xfffe) {

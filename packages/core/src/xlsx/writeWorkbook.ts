@@ -13,7 +13,14 @@ import { buildWorkbookParts, type WorkbookInput } from './workbookParts.ts';
 
 export * from './workbookParts.ts';
 
-/** Build the .xlsx file. Returns the bytes; writing them out is the caller's job. */
-export function writeWorkbook(input: WorkbookInput): Uint8Array {
+/**
+ * Build the .xlsx file. Returns the bytes; writing them out is the caller's job.
+ *
+ * A `Buffer` rather than a `Uint8Array`: this half of the writer is the Node
+ * half — it reaches `node:zlib` through the ZIP writer — and saying so lets
+ * callers use the reader in this package on what comes back. The browser
+ * imports `workbookParts.ts` and never this file.
+ */
+export function writeWorkbook(input: WorkbookInput): Buffer {
   return createZip(buildWorkbookParts(input), { modifiedAt: input.createdAt ?? new Date() });
 }

@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { pipelinePaths, type CacheKeyOptions } from '../cache/keys.ts';
 import { cropImage, placeholderImage, type PlaceholderKind } from '../image/ops.ts';
-import { decodePng, encodePng, readPngHeader, retagPngDpi, type RasterImage } from '../image/png.ts';
+import { decodePng, encodePng, readPngHeader, retagPngDpi } from '../image/png.ts';
 import { convertedExtension, plotExtensionOf } from '../spec/classify.ts';
 import { pixelsToCm } from '../units.ts';
 import type { PlotSpec } from '../types.ts';

@@ -6,7 +6,7 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { renderLayout } from '../src/build/renderLayout.ts';
-import { decodePng, encodePng, type RasterImage } from '../src/image/png.ts';
+import { decodePng, encodePng } from '../src/image/png.ts';
 import { parseLayout } from '../src/layout/layoutFile.ts';
 import { mapWithLimit } from '../src/pipeline/limit.ts';
 import type { DocumentConverter, PdfRenderer, RevisionReader } from '../src/pipeline/ports.ts';

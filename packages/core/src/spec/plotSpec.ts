@@ -11,7 +11,15 @@ import { PLOT_SPEC_DEFAULTS, SpecError, type PlotSpec } from '../types.ts';
 export const PLOT_DECORATOR_KEYS = ['commit', 'page', 'xmin', 'xmax', 'ymin', 'ymax', 'resolution'] as const;
 export type PlotDecoratorKey = (typeof PLOT_DECORATOR_KEYS)[number];
 
-const NUMERIC_KEYS: readonly PlotDecoratorKey[] = ['page', 'xmin', 'xmax', 'ymin', 'ymax', 'resolution'];
+/**
+ * Every decorator but `commit` carries a number. Saying so in the type rather
+ * than only in the array is what lets the defaults be read as numbers below:
+ * `commit` is the one string among them, and a plain `PlotDecoratorKey[]`
+ * drags it into every lookup.
+ */
+type NumericDecoratorKey = Exclude<PlotDecoratorKey, 'commit'>;
+
+const NUMERIC_KEYS: readonly NumericDecoratorKey[] = ['page', 'xmin', 'xmax', 'ymin', 'ymax', 'resolution'];
 
 export interface ParsePlotSpecOptions {
   /** Layout-level defaults, e.g. a `#resolution:` set for the whole file. */

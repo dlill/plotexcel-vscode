@@ -275,35 +275,6 @@ function wrapText(text: string, scale: number, maxWidth: number): string[] {
   return lines;
 }
 
-function pixel(image: RasterImage, x: number, y: number): [number, number, number, number] {
-  const at = (y * image.width + x) * 4;
-  return [image.data[at]!, image.data[at + 1]!, image.data[at + 2]!, image.data[at + 3]!];
-}
-
-/** Blend a pixel over white, then compare in YIQ space, as pixelmatch does. */
-function colourDelta(a: [number, number, number, number], b: [number, number, number, number]): number {
-  const [ar, ag, ab] = blend(a);
-  const [br, bg, bb] = blend(b);
-
-  const y = rgb2y(ar, ag, ab) - rgb2y(br, bg, bb);
-  const i = rgb2i(ar, ag, ab) - rgb2i(br, bg, bb);
-  const q = rgb2q(ar, ag, ab) - rgb2q(br, bg, bb);
-
-  return 0.5053 * y * y + 0.299 * i * i + 0.1957 * q * q;
-}
-
-function blend([r, g, b, a]: [number, number, number, number]): [number, number, number] {
-  const alpha = a / 255;
-  return [255 + (r - 255) * alpha, 255 + (g - 255) * alpha, 255 + (b - 255) * alpha];
-}
-
-function fade([r, g, b, a]: [number, number, number, number]): [number, number, number] {
-  const [br, bg, bb] = blend([r, g, b, a]);
-  const grey = rgb2y(br, bg, bb);
-  const mixed = grey * 0.25 + 255 * 0.75;
-  return [Math.round(mixed), Math.round(mixed), Math.round(mixed)];
-}
-
 const rgb2y = (r: number, g: number, b: number) => r * 0.29889531 + g * 0.58662247 + b * 0.11448223;
 const rgb2i = (r: number, g: number, b: number) => r * 0.59597799 - g * 0.2741761 - b * 0.32180189;
 const rgb2q = (r: number, g: number, b: number) => r * 0.21147017 - g * 0.52261711 + b * 0.31114694;
