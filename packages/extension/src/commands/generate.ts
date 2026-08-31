@@ -51,7 +51,7 @@ export async function generateLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[
         pageCounter: async (absolutePath) => {
           if (token.isCancellationRequested) return countPages(absolutePath);
 
-          progress.report({ message: absolutePath.split(/[\\/]/).pop() });
+          progress.report({ message: absolutePath.split(/[\\/]/).pop() ?? absolutePath });
           return counter(absolutePath);
         },
       }),

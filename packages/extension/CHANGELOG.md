@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — 2026-08-31
+
+Nothing you can see. 0.3.0 shipped with a type error in the layout generator's
+progress reporting, which failed the test workflow but not the build — esbuild
+strips types without checking them, so the 0.3.0 download behaves identically.
+This is 0.3.0 with a green build, and is the one to install.
+
 ## 0.3.0 — 2026-08-31
 
 - **The plotExcel right-click menu appears straight away.** It used to be
