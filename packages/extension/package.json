@@ -176,7 +176,7 @@
       },
       {
         "command": "plotexcel.compareWithRevision",
-        "title": "Compare Selected with Revision...",
+        "title": "Compare with Revision...",
         "category": "plotExcel"
       },
       {
@@ -238,7 +238,7 @@
         },
         {
           "command": "plotexcel.compareWithRevision",
-          "when": "plotexcel.supported && plotexcel.hasSelection && plotexcel.selectionInRepository",
+          "when": "plotexcel.supported && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i)",
           "group": "3_compare@13"
         },
         {
@@ -401,7 +401,7 @@
         },
         {
           "command": "plotexcel.compareWithRevision",
-          "when": "plotexcel.hasSelection && plotexcel.selectionInRepository"
+          "when": "plotexcel.hasSelection"
         },
         {
           "command": "plotexcel.clearDiffSelection",

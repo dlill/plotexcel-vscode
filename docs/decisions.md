@@ -225,6 +225,28 @@ already commits to, and what it learned along the way.
   Access API the workbook could only arrive in Downloads, which is the one
   thing the page exists to avoid.
 
+## Comparing against a revision
+
+- **Right-click reaches it directly.** The command already preferred a passed
+  URI over the stored selection, so only the menu's `when` stood in the way: it
+  demanded a selection *and* `selectionInRepository`, which meant the two-step
+  select-then-compare dance for something that needs one resource. It is now
+  offered on any plot or folder, and says so itself when there is no history.
+- **That made `selectionInRepository` dead, and it took a subprocess with it.**
+  Nothing consumed the key any more, and the only thing that set it was a
+  `git ls-files` on every single selection — a process started to decide
+  whether to grey out a menu entry that now handles the answer itself.
+- **A folder's second side comes from `git ls-tree`.** Only the working tree is
+  on disk, so pairing by path needs the revision's file list from git. Core
+  cannot run git, so the caller passes `commitFiles` in, the same seam that
+  keeps the pipeline testable without Ghostscript. `listFiles` answers
+  undefined rather than `[]` when there is no repository: "empty then" and "no
+  history at all" produce very different tables, and conflating them would show
+  every plot as newly added.
+- **Pages are counted from the working tree.** The revision's copy is not a
+  file, so a plot deleted since falls back to one page. It is the one place
+  this table guesses, and the row still appears — which is the point.
+
 ## Hostile input
 
 The extension opens whatever a folder contains and runs converters over it, so

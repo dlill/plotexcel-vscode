@@ -14,7 +14,6 @@ import * as vscode from 'vscode';
 export interface DiffSelection {
   readonly uri: vscode.Uri;
   readonly isFolder: boolean;
-  readonly inRepository: boolean;
 }
 
 export class SelectionState {
@@ -55,7 +54,6 @@ export class SelectionState {
 
     await vscode.commands.executeCommand('setContext', 'plotexcel.hasSelection', selection !== undefined);
     await vscode.commands.executeCommand('setContext', 'plotexcel.selectionIsFolder', selection?.isFolder ?? false);
-    await vscode.commands.executeCommand('setContext', 'plotexcel.selectionInRepository', selection?.inRepository ?? false);
 
     if (selection === undefined) {
       this.item.hide();

@@ -9,7 +9,11 @@ that does not require R.
   quick fixes, CodeLens, drag-and-drop and a formatter
 - Render to `.xlsx` with exact image geometry in EMU, page extraction,
   cropping and the ten styles from the R package
-- Visual diffs between two files, two folders, or a file and a git revision
+- Visual diffs between two files, two folders, a file and a git revision, or
+  a whole folder and a git revision. **Compare with Revision** is on the
+  right-click menu of any plot or folder, with no need to select anything
+  first; a plot added or deleted since that revision gets a row saying so
+  rather than a rendering failure
 - PDF rendering through Ghostscript, Poppler or MuPDF; Office documents
   through Microsoft Office or LibreOffice; HTML through Chrome or Edge —
   each optional, each detected, none required

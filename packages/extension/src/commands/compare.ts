@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { generateComparison, generateFolderComparison } from '../../../core/src/build/generateLayout.ts';
 import { formatLayout, type LayoutFile } from '../../../core/src/layout/layoutFile.ts';
 import { createGitRevisionReader } from '../../../tools/src/git.ts';
-import { isTrusted, requireTrust, settings } from '../machine.ts';
+import { requireTrust, settings } from '../machine.ts';
 import { log } from '../output.ts';
 import type { SelectionState } from '../selection.ts';
 import { chooseFolder, ensureProjectFolder, layoutUriFor } from '../storage.ts';
@@ -21,14 +21,12 @@ import { chooseFolder, ensureProjectFolder, layoutUriFor } from '../storage.ts';
 export async function selectForDiffCommand(state: SelectionState, uri?: vscode.Uri): Promise<void> {
   if (uri === undefined) return;
 
+  // No git here: Compare with Revision is offered on any plot or folder and
+  // says so itself when there is no history, so asking whether this one is
+  // tracked would start a process to decide nothing.
   const stat = await vscode.workspace.fs.stat(uri);
-  const isFolder = stat.type === vscode.FileType.Directory;
-  // Asking whether a file is tracked means starting git. Recording a selection
-  // is too small a gesture to interrupt with a trust prompt, so an untrusted
-  // folder simply offers no revision comparison.
-  const inRepository = isFolder || !isTrusted() ? false : await createGitRevisionReader().isTracked(uri.fsPath);
 
-  await state.set({ uri, isFolder, inRepository });
+  await state.set({ uri, isFolder: stat.type === vscode.FileType.Directory });
 }
 
 export async function compareWithSelectedCommand(state: SelectionState, uri?: vscode.Uri): Promise<void> {
@@ -97,13 +95,16 @@ export async function compareTwoSelectedCommand(_uri?: vscode.Uri, uris?: vscode
 export async function compareWithRevisionCommand(state: SelectionState, uri?: vscode.Uri): Promise<void> {
   if (!(await requireTrust())) return;
 
+  // The right-clicked resource wins over the stored selection, so this works
+  // straight from the Explorer as well as after Select for Visual Diff.
   const target = uri ?? state.value?.uri;
   if (target === undefined) {
-    void vscode.window.showWarningMessage('Select a plot first: right-click it and choose Select for Visual Diff.');
+    void vscode.window.showWarningMessage('Right-click a plot or a folder of plots and choose Compare with Revision.');
     return;
   }
 
   const git = createGitRevisionReader();
+  const isFolder = await isDirectory(target);
   const revisions = await git.listRevisions(target.fsPath, 40);
 
   if (revisions.length === 0) {
@@ -125,19 +126,51 @@ export async function compareWithRevisionCommand(state: SelectionState, uri?: vs
 
   if (picked === undefined) return;
 
-  await buildAndRender(
-    async (layoutDir) =>
-      generateComparison({
-        first: target.fsPath,
-        commit: picked.revision.hash,
-        layoutDir,
-        resolution: settings().defaultResolution,
-      }),
-    target,
-    `${basename(target)}-vs-${picked.revision.shortHash}`,
-  );
+  const commit = picked.revision.hash;
+  const configuration = settings();
+
+  if (isFolder) {
+    // Both sides' file lists are needed and only one is on disk, so git is
+    // asked what the folder held then.
+    const commitFiles = await git.listFiles(target.fsPath, commit);
+
+    await buildAndRender(
+      async (layoutDir) =>
+        generateFolderComparison({
+          left: target.fsPath,
+          commit,
+          ...(commitFiles === undefined ? {} : { commitFiles }),
+          layoutDir,
+          resolution: configuration.defaultResolution,
+          nPagesMax: configuration.nPagesMax,
+        }),
+      target,
+      `${basename(target)}-vs-${picked.revision.shortHash}`,
+    );
+  } else {
+    await buildAndRender(
+      async (layoutDir) =>
+        generateComparison({
+          first: target.fsPath,
+          commit,
+          layoutDir,
+          resolution: configuration.defaultResolution,
+        }),
+      target,
+      `${basename(target)}-vs-${picked.revision.shortHash}`,
+    );
+  }
 
   await state.clear();
+}
+
+async function isDirectory(uri: vscode.Uri): Promise<boolean> {
+  try {
+    const stat = await vscode.workspace.fs.stat(uri);
+    return stat.type === vscode.FileType.Directory;
+  } catch {
+    return false;
+  }
 }
 
 // ------------------------------------------------------------------------- //
