@@ -1,0 +1,70 @@
+name: release
+
+# Only a version tag. Nothing here runs on a commit, a branch or a merge —
+# pushing a tag is the one deliberate act that produces a .vsix.
+on:
+  push:
+    tags: ['v*']
+
+# The release is created with the token GitHub already provides, so there is
+# nothing to configure and no secret to rotate.
+permissions:
+  contents: write
+
+# Two tags pushed close together would otherwise race to create releases.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm install
+
+      # A tag that disagrees with the manifest would produce a file whose name
+      # contradicts the release it hangs under. Fail here rather than there.
+      - name: Check the tag matches the manifest
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          MANIFEST=$(node -p "require('./packages/extension/package.json').version")
+          if [ "$TAG" != "$MANIFEST" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match version $MANIFEST in packages/extension/package.json."
+            exit 1
+          fi
+          echo "version=$MANIFEST" >> "$GITHUB_ENV"
+
+      - run: npm test
+
+      - name: Build the extension package
+        working-directory: packages/extension
+        run: |
+          npm install --no-save @vscode/vsce
+          npx vsce package --out "../../dist/plotexcel-${{ env.version }}.vsix"
+          # A second copy under a fixed name, so that
+          #   .../releases/latest/download/plotexcel.vsix
+          # is a URL that keeps working and can go in the README.
+          cp "../../dist/plotexcel-${{ env.version }}.vsix" ../../dist/plotexcel.vsix
+
+      # The release notes are the CHANGELOG section for this version, so the
+      # changelog stays the one place a change is written down.
+      - name: Take the release notes from the changelog
+        run: node tools/release-notes.mjs "${{ env.version }}" > RELEASE_NOTES.md
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "dist/plotexcel-${{ env.version }}.vsix" \
+            dist/plotexcel.vsix \
+            --title "plotExcel ${{ env.version }}" \
+            --notes-file RELEASE_NOTES.md \
+            ${{ contains(env.version, '-') && '--prerelease' || '' }}

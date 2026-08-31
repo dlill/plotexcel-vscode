@@ -1,0 +1,24 @@
+# Changelog
+
+## 0.0.1 — unreleased
+
+First version. A port of the R package [plotExcel](https://github.com/dlill/plotExcel)
+that does not require R.
+
+- Layout files (`.plotexcel.tsv`) with completions, hover, diagnostics,
+  quick fixes, CodeLens, drag-and-drop and a formatter
+- Render to `.xlsx` with exact image geometry in EMU, page extraction,
+  cropping and the ten styles from the R package
+- Visual diffs between two files, two folders, or a file and a git revision
+- PDF rendering through Ghostscript, Poppler or MuPDF; Office documents
+  through Microsoft Office or LibreOffice; HTML through Chrome or Edge —
+  each optional, each detected, none required
+- A cache in the system temp folder, capped and self-pruning
+- Rendering, previewing, watching and comparing wait for the workspace to be
+  trusted, since they run converters over files the folder chose. An untrusted
+  folder detects nothing and starts nothing; the notification offers Manage
+  Trust.
+- `plotexcel.browserPath` is a user setting rather than a workspace one, so a
+  repository cannot name the program that renders its HTML plots
+- Malformed or hostile PNG and Office files are refused with a message instead
+  of being allowed to exhaust memory

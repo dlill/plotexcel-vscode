@@ -1,0 +1,30 @@
+{
+  "name": "plotexcel-vscode",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "plotExcel as a VS Code extension: arrange plots into an Excel workbook, without R.",
+  "license": "AGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dlill/plotexcel-vscode"
+  },
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "test": "node --test \"packages/core/test/*.test.ts\" \"packages/tools/test/*.test.ts\" \"packages/browser/test/*.test.ts\" \"packages/extension/test/*.test.ts\" \"packages/cli/test/*.test.ts\"",
+    "test:watch": "node --test --watch \"packages/core/test/*.test.ts\"",
+    "typecheck": "tsc -p packages/core && tsc -p packages/tools && tsc -p packages/cli && tsc -p packages/extension",
+    "test:core": "node --test \"packages/core/test/*.test.ts\"",
+    "check:extension": "node tools/load-extension-sources.mjs",
+    "demo": "node packages/cli/src/main.ts",
+    "browser:serve": "node tools/serve-browser.mjs 8123",
+    "browser:bundle": "node tools/bundle-browser.mjs",
+    "release": "node tools/release.mjs",
+    "verify": "node tools/verify.mjs"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}

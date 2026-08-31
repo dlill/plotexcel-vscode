@@ -1,0 +1,16 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Rebuilds on every save, so F5 once and then just reload the other
+      // window (Ctrl+R in it) to pick up a change.
+      "type": "npm",
+      "script": "watch",
+      "path": "packages/extension",
+      "isBackground": true,
+      "problemMatcher": "$esbuild-watch",
+      "group": { "kind": "build", "isDefault": true },
+      "label": "npm: watch - packages/extension"
+    }
+  ]
+}

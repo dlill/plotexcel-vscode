@@ -1,0 +1,665 @@
+{
+  "name": "plotexcel",
+  "displayName": "plotExcel",
+  "description": "Arrange PDF and image plots into an Excel workbook, with cropping, page extraction, git revisions and visual diffs.",
+  "version": "0.0.1",
+  "publisher": "dlill",
+  "license": "AGPL-3.0-or-later",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1f6f52",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dlill/plotexcel-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dlill/plotexcel-vscode/issues"
+  },
+  "homepage": "https://github.com/dlill/plotexcel-vscode#readme",
+  "qna": "marketplace",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "excel",
+    "pdf",
+    "plots",
+    "report",
+    "diff"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/*.plotexcel.tsv",
+    "onView:plotexcel.view"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run licence && npm run build -- --minify",
+    "licence": "node -e \"require('fs').copyFileSync('../../LICENSE','LICENSE')\"",
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:mupdf --format=cjs --platform=node --target=node20",
+    "watch": "npm run build -- --sourcemap --watch",
+    "package": "vsce package --out ../../dist/plotexcel.vsix",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.7.0"
+  },
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Rendering runs converters such as LibreOffice or Microsoft Office on files from the workspace, so it stays disabled until the workspace is trusted.",
+      "restrictedConfigurations": [
+        "plotexcel.browserPath"
+      ]
+    }
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "plotexcel-layout",
+        "aliases": [
+          "plotExcel layout"
+        ],
+        "filenamePatterns": [
+          "*.plotexcel.tsv"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "plotexcel.render",
+        "title": "Render plotExcel",
+        "category": "plotExcel",
+        "icon": "$(table)"
+      },
+      {
+        "command": "plotexcel.rebuildAll",
+        "title": "Rebuild Everything",
+        "category": "plotExcel",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "plotexcel.watch",
+        "title": "Watch and Re-render on Change",
+        "category": "plotExcel",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "plotexcel.openWorkbook",
+        "title": "Open the Workbook",
+        "category": "plotExcel",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "plotexcel.generateLayout",
+        "title": "Generate Table Layout",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.addToLayout",
+        "title": "Add to plotExcel Layout",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.insertPlot",
+        "title": "Insert Plot...",
+        "category": "plotExcel",
+        "icon": "$(add)"
+      },
+      {
+        "command": "plotexcel.copyCell",
+        "title": "Copy as plotExcel Cell",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.setResolution",
+        "title": "Set Resolution for This Layout...",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.addDiffColumn",
+        "title": "Add a Comparison Column...",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.expandPages",
+        "title": "One Row per Page",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.sortRows",
+        "title": "Sort Rows by Description",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.quickLook",
+        "title": "Quick Look at This Plot",
+        "category": "plotExcel",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "plotexcel.previewCell",
+        "title": "Preview This Plot",
+        "category": "plotExcel",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "plotexcel.cropAssistant",
+        "title": "Crop This Plot...",
+        "category": "plotExcel",
+        "icon": "$(screen-normal)"
+      },
+      {
+        "command": "plotexcel.selectForDiff",
+        "title": "Select for Visual Diff",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.compareWithSelected",
+        "title": "Compare Visually with Selected",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.compareTwoSelected",
+        "title": "Visually Diff These Two",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.compareWithRevision",
+        "title": "Compare Selected with Revision...",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.clearDiffSelection",
+        "title": "Clear Visual Diff Selection",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.clearCache",
+        "title": "Clear Cache",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.checkSetup",
+        "title": "Check My Setup",
+        "category": "plotExcel",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "plotexcel.refreshView",
+        "title": "Refresh",
+        "category": "plotExcel",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "plotexcel.openSample",
+        "category": "plotExcel",
+        "title": "Open a Sample Project",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "plotexcel.openWalkthrough",
+        "category": "plotExcel",
+        "title": "Getting Started Walkthrough",
+        "icon": "$(book)"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "plotexcel.quickLook",
+          "when": "plotexcel.supported && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "2_workspace@10"
+        },
+        {
+          "command": "plotexcel.selectForDiff",
+          "when": "plotexcel.supported && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i)",
+          "group": "3_compare@10"
+        },
+        {
+          "command": "plotexcel.compareWithSelected",
+          "when": "plotexcel.supported && plotexcel.hasSelection && ((explorerResourceIsFolder && plotexcel.selectionIsFolder) || (!explorerResourceIsFolder && !plotexcel.selectionIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i))",
+          "group": "3_compare@11"
+        },
+        {
+          "command": "plotexcel.compareTwoSelected",
+          "when": "plotexcel.supported && listMultiSelection && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "3_compare@12"
+        },
+        {
+          "command": "plotexcel.compareWithRevision",
+          "when": "plotexcel.supported && plotexcel.hasSelection && plotexcel.selectionInRepository",
+          "group": "3_compare@13"
+        },
+        {
+          "command": "plotexcel.generateLayout",
+          "when": "plotexcel.supported && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i)",
+          "group": "7_modification@10"
+        },
+        {
+          "command": "plotexcel.addToLayout",
+          "when": "plotexcel.supported && plotexcel.hasLayout && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "7_modification@11"
+        },
+        {
+          "command": "plotexcel.copyCell",
+          "when": "plotexcel.supported && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "6_copypath@10"
+        },
+        {
+          "command": "plotexcel.render",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "7_modification@12"
+        },
+        {
+          "command": "plotexcel.watch",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "7_modification@13"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "plotexcel.render",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "navigation@10"
+        },
+        {
+          "command": "plotexcel.rebuildAll",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "navigation@11"
+        },
+        {
+          "command": "plotexcel.watch",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "navigation@12"
+        },
+        {
+          "command": "plotexcel.openWorkbook",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "1_run@10"
+        },
+        {
+          "command": "plotexcel.setResolution",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "1_run@11"
+        },
+        {
+          "command": "plotexcel.addDiffColumn",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "1_run@12"
+        },
+        {
+          "command": "plotexcel.sortRows",
+          "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
+          "group": "1_run@13"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "plotexcel.previewCell",
+          "when": "editorLangId == plotexcel-layout",
+          "group": "plotexcel@10"
+        },
+        {
+          "command": "plotexcel.cropAssistant",
+          "when": "editorLangId == plotexcel-layout",
+          "group": "plotexcel@11"
+        },
+        {
+          "command": "plotexcel.expandPages",
+          "when": "editorLangId == plotexcel-layout",
+          "group": "plotexcel@12"
+        },
+        {
+          "command": "plotexcel.insertPlot",
+          "when": "editorLangId == plotexcel-layout",
+          "group": "plotexcel@13"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "plotexcel.generateLayout",
+          "when": "view == plotexcel.view",
+          "group": "navigation@10"
+        },
+        {
+          "command": "plotexcel.checkSetup",
+          "when": "view == plotexcel.view",
+          "group": "navigation@11"
+        },
+        {
+          "command": "plotexcel.refreshView",
+          "when": "view == plotexcel.view",
+          "group": "navigation@12"
+        },
+        {
+          "command": "plotexcel.openSample",
+          "when": "view == plotexcel.view",
+          "group": "1_learn@10"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "plotexcel.render",
+          "when": "view == plotexcel.view && viewItem == plotexcel.layout",
+          "group": "inline@10"
+        },
+        {
+          "command": "plotexcel.watch",
+          "when": "view == plotexcel.view && viewItem == plotexcel.layout",
+          "group": "inline@11"
+        },
+        {
+          "command": "plotexcel.openWorkbook",
+          "when": "view == plotexcel.view && viewItem == plotexcel.layout",
+          "group": "inline@12"
+        },
+        {
+          "command": "plotexcel.rebuildAll",
+          "when": "view == plotexcel.view && viewItem == plotexcel.layout",
+          "group": "1_run@10"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "plotexcel.selectForDiff",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.compareWithSelected",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.compareTwoSelected",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.addToLayout",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.copyCell",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.quickLook",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.refreshView",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.compareWithRevision",
+          "when": "plotexcel.hasSelection && plotexcel.selectionInRepository"
+        },
+        {
+          "command": "plotexcel.clearDiffSelection",
+          "when": "plotexcel.hasSelection"
+        },
+        {
+          "command": "plotexcel.generateLayout",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "plotexcel.render",
+          "when": "plotexcel.hasLayout"
+        },
+        {
+          "command": "plotexcel.rebuildAll",
+          "when": "plotexcel.hasLayout"
+        },
+        {
+          "command": "plotexcel.watch",
+          "when": "plotexcel.hasLayout"
+        },
+        {
+          "command": "plotexcel.openWorkbook",
+          "when": "plotexcel.hasLayout"
+        },
+        {
+          "command": "plotexcel.insertPlot",
+          "when": "editorLangId == plotexcel-layout"
+        },
+        {
+          "command": "plotexcel.previewCell",
+          "when": "editorLangId == plotexcel-layout"
+        },
+        {
+          "command": "plotexcel.cropAssistant",
+          "when": "editorLangId == plotexcel-layout"
+        },
+        {
+          "command": "plotexcel.expandPages",
+          "when": "editorLangId == plotexcel-layout"
+        },
+        {
+          "command": "plotexcel.setResolution",
+          "when": "plotexcel.hasLayout"
+        },
+        {
+          "command": "plotexcel.addDiffColumn",
+          "when": "editorLangId == plotexcel-layout"
+        },
+        {
+          "command": "plotexcel.sortRows",
+          "when": "editorLangId == plotexcel-layout"
+        },
+        {
+          "command": "plotexcel.clearCache",
+          "when": "true"
+        },
+        {
+          "command": "plotexcel.checkSetup",
+          "when": "true"
+        },
+        {
+          "command": "plotexcel.openSample",
+          "when": "true"
+        },
+        {
+          "command": "plotexcel.openWalkthrough",
+          "when": "true"
+        }
+      ]
+    },
+    "walkthroughs": [
+      {
+        "id": "plotexcel.gettingStarted",
+        "title": "Put your plots into a spreadsheet",
+        "description": "Turn a folder of PDFs and images into one Excel workbook, and keep it up to date. About five minutes.",
+        "steps": [
+          {
+            "id": "plotexcel.sample",
+            "title": "Try it on a sample",
+            "description": "A folder of plots, a table, and a workbook \u2014 written for you, so there is something to look at before there is anything to set up. It renders real PDFs, so if this works, this computer can do everything.\n[Open a sample project](command:plotexcel.openSample)",
+            "media": {
+              "markdown": "media/walkthrough-sample.md"
+            },
+            "completionEvents": [
+              "onCommand:plotexcel.openSample"
+            ]
+          },
+          {
+            "id": "plotexcel.checkSetup",
+            "title": "See what this computer can do",
+            "description": "PDF and image plots always work. Word, PowerPoint and Excel plots need Office or LibreOffice, and HTML plots need Edge or Chrome.\n[Check my setup](command:plotexcel.checkSetup)",
+            "media": {
+              "markdown": "media/walkthrough-setup.md"
+            },
+            "completionEvents": [
+              "onCommand:plotexcel.checkSetup"
+            ]
+          },
+          {
+            "id": "plotexcel.generate",
+            "title": "Start from a folder of plots",
+            "description": "Right-click the folder your plots are in and choose **Generate Table Layout**. You get a table with every plot and page already filled in.\n[Generate a layout](command:plotexcel.generateLayout)",
+            "media": {
+              "markdown": "media/walkthrough-generate.md"
+            },
+            "completionEvents": [
+              "onCommand:plotexcel.generateLayout"
+            ]
+          },
+          {
+            "id": "plotexcel.edit",
+            "title": "Edit the table",
+            "description": "The layout is an ordinary tab-separated file. Delete rows you do not want, reorder them, write captions, and crop a plot by adding `::xmax 85`.",
+            "media": {
+              "markdown": "media/walkthrough-edit.md"
+            },
+            "completionEvents": [
+              "onSettingChanged:plotexcel.defaultResolution",
+              "onCommand:plotexcel.insertPlot"
+            ]
+          },
+          {
+            "id": "plotexcel.render",
+            "title": "Render the workbook",
+            "description": "Press the Render button above the table, or run it from the palette. Rendering again is nearly instant \u2014 only what changed is redone.\n[Render](command:plotexcel.render)",
+            "media": {
+              "markdown": "media/walkthrough-render.md"
+            },
+            "completionEvents": [
+              "onCommand:plotexcel.render"
+            ]
+          },
+          {
+            "id": "plotexcel.compare",
+            "title": "Compare two versions",
+            "description": "Right-click a plot and choose **Select for Visual Diff**, then right-click another and choose **Compare Visually with Selected**. You can also compare one plot against a committed version.",
+            "media": {
+              "markdown": "media/walkthrough-compare.md"
+            },
+            "completionEvents": [
+              "onCommand:plotexcel.compareWithSelected",
+              "onCommand:plotexcel.compareTwoSelected"
+            ]
+          }
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "plotExcel",
+      "properties": {
+        "plotexcel.layoutLocation": {
+          "type": "string",
+          "enum": [
+            "projectFolder",
+            "besideSource",
+            "ask"
+          ],
+          "enumDescriptions": [
+            "Write layouts to .plotexcel/layouts/ in the workspace root, where they stay out of git.",
+            "Write layouts next to the folder they describe, so they can be committed.",
+            "Ask each time a layout is generated."
+          ],
+          "default": "projectFolder",
+          "markdownDescription": "Where `Generate Table Layout` writes new layout files."
+        },
+        "plotexcel.defaultResolution": {
+          "type": "number",
+          "default": 150,
+          "minimum": 30,
+          "maximum": 600,
+          "description": "Resolution in dpi written into generated layouts. Above 300 dpi, workbooks get large and slow."
+        },
+        "plotexcel.nPagesMax": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "description": "Maximum number of pages taken from any one file when generating a layout from a folder."
+        },
+        "plotexcel.confirmAbovePageCount": {
+          "type": "number",
+          "default": 120,
+          "description": "Ask for confirmation before rendering more images than this in one run."
+        },
+        "plotexcel.cacheSizeLimitMB": {
+          "type": "number",
+          "default": 1024,
+          "minimum": 64,
+          "description": "Size limit for the pipeline cache in the system temp folder. The oldest entries are removed first, and plotExcel offers to clear the cache as it approaches this limit."
+        },
+        "plotexcel.cacheWarnAtPercent": {
+          "type": "number",
+          "default": 80,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Show a notification when the cache reaches this percentage of the size limit. Set to 0 to never be told."
+        },
+        "plotexcel.officeConverter": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "msoffice",
+            "libreoffice",
+            "off"
+          ],
+          "default": "auto",
+          "description": "How Word, PowerPoint and Excel inputs are converted to PDF. 'auto' prefers Microsoft Office on Windows and LibreOffice elsewhere."
+        },
+        "plotexcel.browserPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Path to a Chrome, Edge or Chromium executable used to render HTML plots. Leave empty to detect one automatically. This is a user setting: a workspace cannot name the program plotExcel runs."
+        },
+        "plotexcel.openAfterRender": {
+          "type": "boolean",
+          "default": true,
+          "description": "Open the workbook when a render finishes."
+        }
+      }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "plotexcel.view",
+          "name": "plotExcel",
+          "icon": "$(table)",
+          "when": "plotexcel.supported"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "plotexcel.view",
+        "contents": "Turn a folder of plots into one Excel workbook.\n[Generate a layout from a folder](command:plotexcel.generateLayout)\n[Open a sample project](command:plotexcel.openSample)\nOr take the [five-step walkthrough](command:plotexcel.openWalkthrough), which starts by [checking what this computer can do](command:plotexcel.checkSetup)."
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "plotexcel.render",
+        "key": "alt+r",
+        "when": "editorLangId == plotexcel-layout && editorTextFocus"
+      },
+      {
+        "command": "plotexcel.previewCell",
+        "key": "alt+p",
+        "when": "editorLangId == plotexcel-layout && editorTextFocus"
+      },
+      {
+        "command": "plotexcel.cropAssistant",
+        "key": "alt+c",
+        "when": "editorLangId == plotexcel-layout && editorTextFocus"
+      },
+      {
+        "command": "plotexcel.insertPlot",
+        "key": "alt+i",
+        "when": "editorLangId == plotexcel-layout && editorTextFocus"
+      }
+    ]
+  }
+}

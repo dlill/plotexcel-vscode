@@ -1,0 +1,16 @@
+{
+  // Press F5 with this file's folder open to launch a second VS Code with the
+  // extension loaded. That window is the Extension Development Host: open a
+  // folder of plots in it and everything behaves as it would once installed.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run plotExcel",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": ["--extensionDevelopmentPath=${workspaceFolder}/packages/extension"],
+      "outFiles": ["${workspaceFolder}/packages/extension/dist/**/*.js"],
+      "preLaunchTask": "npm: watch - packages/extension"
+    }
+  ]
+}

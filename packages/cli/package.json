@@ -1,0 +1,9 @@
+{
+  "name": "@plotexcel/cli",
+  "version": "0.0.1",
+  "description": "plotExcel from the command line: render layouts, generate them from folders, compare files and revisions.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "bin": { "plotexcel": "./src/main.ts" },
+  "exports": { ".": "./src/main.ts" }
+}

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plotExcel</title>
+<style>
+  :root {
+    --ground: #f6f7f4;
+    --surface: #ffffff;
+    --surface-2: #eef1ec;
+    --ink: #191d1a;
+    --muted: #5c645e;
+    --faint: #868d88;
+    --rule: #dce0d9;
+    --accent: #1f6f52;
+    --accent-soft: #e2efe8;
+    --warn: #a8531f;
+    --warn-soft: #f7ecdf;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #141715; --surface: #1b1f1c; --surface-2: #232823;
+      --ink: #e7eae5; --muted: #9ba39c; --faint: #79817a; --rule: #2c322d;
+      --accent: #64c39a; --accent-soft: #1d2e26; --warn: #d89355; --warn-soft: #2f2620;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink); font-family: var(--sans);
+    line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 880px; margin: 0 auto; padding: 3rem 1.25rem 5rem; display: flex; flex-direction: column; gap: 1.75rem; }
+
+  header { display: flex; flex-direction: column; gap: 0.4rem; }
+  h1 { margin: 0; font-size: 1.9rem; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--muted); max-width: 60ch; }
+
+  #drop {
+    border: 2px dashed var(--rule); border-radius: 8px; background: var(--surface);
+    padding: 2.75rem 1.5rem; text-align: center; display: flex; flex-direction: column;
+    align-items: center; gap: 0.75rem; transition: border-color 120ms, background 120ms;
+  }
+  #drop.hot { border-color: var(--accent); background: var(--accent-soft); }
+  #drop h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+  #drop p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+  button {
+    font: inherit; font-size: 0.9rem; padding: 0.5rem 1.1rem; border-radius: 5px; border: 1px solid transparent;
+    background: var(--accent); color: var(--ground); cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--ink); border-color: var(--rule); }
+  button:disabled { opacity: 0.45; cursor: default; }
+
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 1.1rem 1.25rem; }
+  .card h2 { margin: 0 0 0.75rem; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-family: var(--mono); }
+
+  #options { display: flex; flex-wrap: wrap; gap: 1.25rem; align-items: flex-end; }
+  label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.8rem; color: var(--muted); }
+  select, input[type="number"] {
+    font: inherit; font-size: 0.9rem; padding: 0.35rem 0.5rem; border-radius: 4px;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--ink); min-width: 8rem;
+  }
+  .check { flex-direction: row; align-items: center; gap: 0.45rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--rule); }
+  th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-family: var(--mono); }
+  td.path { font-family: var(--mono); font-size: 0.8rem; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+  .scroll { max-height: 20rem; overflow-y: auto; }
+
+  .pill {
+    font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 0.1rem 0.4rem; border-radius: 3px; background: var(--surface-2); color: var(--muted);
+  }
+  .pill.ok { background: var(--accent-soft); color: var(--accent); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+
+  #actions { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  #status { color: var(--muted); font-size: 0.875rem; min-height: 1.4em; }
+  .note { color: var(--warn); font-size: 0.85rem; }
+  .hidden { display: none; }
+  footer { color: var(--faint); font-size: 0.8rem; border-top: 1px solid var(--rule); padding-top: 1rem; }
+  code { font-family: var(--mono); font-size: 0.85em; background: var(--surface-2); padding: 0.1em 0.35em; border-radius: 3px; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>plotExcel</h1>
+      <p>Drop a folder of plots. Get one Excel workbook, written back into the same folder.</p>
+    </header>
+
+    <div id="unsupported" class="card hidden">
+      <h2>This browser cannot do it</h2>
+      <p>Reading a folder needs the File System Access API, which Chrome and Edge have and Firefox and Safari do not.</p>
+    </div>
+
+    <div id="drop">
+      <h2>Drop a folder here</h2>
+      <p>or</p>
+      <button id="choose">Choose a folder…</button>
+      <p id="dropped" class="hidden"></p>
+    </div>
+
+    <section id="options" class="card hidden">
+      <label>Resolution
+        <select id="resolution">
+          <option value="96">96 dpi — quick draft</option>
+          <option value="150" selected>150 dpi — the usual choice</option>
+          <option value="300">300 dpi — print</option>
+        </select>
+      </label>
+      <label>Pages per file
+        <input id="maxPages" type="number" min="1" max="50" value="4">
+      </label>
+      <label>Description column
+        <input id="textWidth" type="number" min="2" max="30" step="0.5" value="8">
+      </label>
+      <label class="check"><input id="borders" type="checkbox"> Cell borders</label>
+    </section>
+
+    <section id="files" class="card hidden">
+      <h2>Plots found</h2>
+      <div class="scroll"><table>
+        <thead><tr><th>File</th><th>Kind</th><th class="num">Pages</th><th class="num">Size</th></tr></thead>
+        <tbody id="fileRows"></tbody>
+      </table></div>
+    </section>
+
+    <section id="actions" class="hidden">
+      <button id="build">Build the workbook</button>
+      <span id="status"></span>
+    </section>
+
+    <section id="result" class="card hidden">
+      <h2>Done</h2>
+      <p id="summary"></p>
+      <div id="notes"></div>
+      <div id="downloads" style="display:flex;gap:0.75rem;margin-top:0.9rem;flex-wrap:wrap"></div>
+    </section>
+
+    <footer>
+      Everything happens on this machine — nothing is uploaded. PDF pages need the
+      VS&nbsp;Code extension or the command line to be drawn; this page writes the
+      <code>.plotexcel.tsv</code> layout so either can finish the job.
+    </footer>
+  </div>
+
+  <script type="module" src="./src/app.ts"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# Everything that is not needed at runtime. The extension ships as one
+# bundled file, so the sources it was built from stay out.
+.vscode/**
+src/**
+tsconfig.json
+node_modules/**
+**/*.map
+!dist/extension.js
+!media/**
+!language-configuration.json
+!package.json
+!README.md
+!CHANGELOG.md
+!LICENSE

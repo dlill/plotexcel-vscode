@@ -1,0 +1,14 @@
+{
+  "name": "@plotexcel/tools",
+  "version": "0.0.1",
+  "description": "Adapters for the things the pipeline cannot do itself: rendering PDFs, converting Office and HTML, reading git.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "test": "node --test \"test/*.test.ts\""
+  },
+  "optionalDependencies": {
+    "mupdf": "^1.3.0"
+  }
+}

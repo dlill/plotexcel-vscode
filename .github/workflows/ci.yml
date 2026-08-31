@@ -1,0 +1,64 @@
+name: tests
+
+# When this runs, and deliberately not more often than that:
+#
+#   - on a pull request, and on every push to one while it is open
+#   - on a version tag, alongside the release build
+#   - on demand, from the Actions tab
+#
+# Not on a push to a branch. Day-to-day commits — including straight onto
+# main — cost nothing, so a rough commit at the end of an evening does not
+# turn into a red badge and an email. What catches a mistake instead is the
+# pull request before a merge, and the release workflow, which runs this
+# same suite before it will package anything: a tag with failing tests
+# produces no .vsix at all.
+#
+# To go back to testing every commit on main, add:
+#   push:
+#     branches: [main]
+
+on:
+  pull_request:
+    # Prose cannot break the tests. A pull request that only rewords a README
+    # should not wait five minutes to say so.
+    paths-ignore: ['**.md', 'docs/**', 'LICENSE']
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+# A second push to the same pull request makes the first run pointless.
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 22.18 and later strip TypeScript types without a flag, which is
+      # what lets the tests run the sources directly.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm install
+
+      # Windows is where most of these users are, and the cache keys, path
+      # handling and Office converter all behave differently there.
+      - run: npm run test:core
+
+      # The tools suite starts real processes, so it stays on one platform.
+      - run: npm test
+        if: matrix.os == 'ubuntu-latest'
+
+      - run: npm run typecheck
+
+      - run: node tools/load-extension-sources.mjs
