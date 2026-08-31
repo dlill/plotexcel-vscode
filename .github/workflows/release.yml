@@ -43,15 +43,20 @@ jobs:
 
       - run: npm test
 
+      # Through the npm script rather than invoking vsce here, so the flags
+      # live in one place. Driving the packager directly meant this step never
+      # got --no-dependencies: vsce resolved against the workspace root and
+      # died on `extension/../../tsconfig.base.json`. The first release ever
+      # attempted failed on exactly that.
       - name: Build the extension package
         working-directory: packages/extension
         run: |
           npm install --no-save @vscode/vsce
-          npx vsce package --out "../../dist/plotexcel-${{ env.version }}.vsix"
+          npm run package
           # A second copy under a fixed name, so that
           #   .../releases/latest/download/plotexcel.vsix
           # is a URL that keeps working and can go in the README.
-          cp "../../dist/plotexcel-${{ env.version }}.vsix" ../../dist/plotexcel.vsix
+          cp ../../dist/plotexcel.vsix "../../dist/plotexcel-${{ env.version }}.vsix"
 
       # The release notes are the CHANGELOG section for this version, so the
       # changelog stays the one place a change is written down.

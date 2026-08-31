@@ -284,6 +284,23 @@ describe('the package as it ships', () => {
     );
   });
 
+  /**
+   * The release workflow used to call `npx vsce package` itself, which meant
+   * the flag above protected the local command and nothing else — the first
+   * release ever attempted died in CI on the path the flag exists to prevent.
+   * Packaging goes through the one script, so there is one place to get right.
+   */
+  it('packages in CI the same way it packages here', () => {
+    const workflow = readFileSync(path.join(repositoryRoot, '.github/workflows/release.yml'), 'utf8');
+
+    assert.match(workflow, /npm run package\b/, 'the release workflow should build through the package script');
+    assert.doesNotMatch(
+      workflow,
+      /(?:npx |^\s*)vsce package\b/m,
+      'calling vsce directly here is how the flags drift apart again',
+    );
+  });
+
   it('activates on something, and not on everything', () => {
     assert.ok(declared.activationEvents.length > 0);
     assert.ok(
