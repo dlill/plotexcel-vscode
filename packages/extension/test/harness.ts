@@ -105,7 +105,8 @@ export interface Manifest {
   };
   readonly contributes: {
     readonly commands: readonly { command: string; title: string; category?: string; icon?: string }[];
-    readonly menus: Record<string, readonly { command?: string; when?: string; group?: string }[]>;
+    readonly menus: Record<string, readonly { command?: string; submenu?: string; when?: string; group?: string }[]>;
+    readonly submenus?: readonly { id: string; label: string }[];
     readonly keybindings?: readonly { command: string; key: string; when?: string }[];
     readonly configuration: {
       readonly properties: Record<string, { default?: unknown; type?: string; scope?: string }>;

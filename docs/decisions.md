@@ -247,6 +247,20 @@ already commits to, and what it learned along the way.
   file, so a plot deleted since falls back to one page. It is the one place
   this table guesses, and the row still appears — which is the point.
 
+## The right-click menu
+
+- **One submenu, not nine entries.** The Explorer entries used the Explorer's
+  own groups — `2_workspace`, `3_compare`, `6_copypath`, `7_modification` —
+  which is idiomatic and was the wrong call: it scattered them among VS Code's
+  commands with separators in between, so Select for Visual Diff was nowhere
+  near Generate Table Layout and nothing marked either as ours. They are now
+  one `plotexcel.explorer` submenu labelled **plotExcel**, and the grouping
+  inside it is the order someone works in: look, build a layout, compare,
+  render.
+- **The child entries dropped `plotexcel.supported`.** The submenu itself
+  carries it, and a check repeated on every child is a check that can
+  disagree with itself later.
+
 ## Hostile input
 
 The extension opens whatever a folder contains and runs converters over it, so

@@ -176,7 +176,7 @@
       },
       {
         "command": "plotexcel.compareWithRevision",
-        "title": "Compare with Revision...",
+        "title": "Visual Compare with Revision...",
         "category": "plotExcel"
       },
       {
@@ -214,57 +214,70 @@
         "icon": "$(book)"
       }
     ],
+    "submenus": [
+      {
+        "id": "plotexcel.explorer",
+        "label": "plotExcel"
+      }
+    ],
     "menus": {
       "explorer/context": [
         {
+          "submenu": "plotexcel.explorer",
+          "when": "plotexcel.supported && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i || resourceFilename =~ /\\.plotexcel\\.tsv$/i)",
+          "group": "7_modification@10"
+        }
+      ],
+      "plotexcel.explorer": [
+        {
           "command": "plotexcel.quickLook",
-          "when": "plotexcel.supported && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
-          "group": "2_workspace@10"
+          "when": "!explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "1_look@10"
+        },
+        {
+          "command": "plotexcel.generateLayout",
+          "when": "explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "2_layout@10"
+        },
+        {
+          "command": "plotexcel.addToLayout",
+          "when": "plotexcel.hasLayout && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "2_layout@11"
+        },
+        {
+          "command": "plotexcel.copyCell",
+          "when": "!explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "2_layout@12"
         },
         {
           "command": "plotexcel.selectForDiff",
-          "when": "plotexcel.supported && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i)",
+          "when": "explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
           "group": "3_compare@10"
         },
         {
           "command": "plotexcel.compareWithSelected",
-          "when": "plotexcel.supported && plotexcel.hasSelection && ((explorerResourceIsFolder && plotexcel.selectionIsFolder) || (!explorerResourceIsFolder && !plotexcel.selectionIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i))",
+          "when": "plotexcel.hasSelection && ((explorerResourceIsFolder && plotexcel.selectionIsFolder) || (!explorerResourceIsFolder && !plotexcel.selectionIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i))",
           "group": "3_compare@11"
         },
         {
           "command": "plotexcel.compareTwoSelected",
-          "when": "plotexcel.supported && listMultiSelection && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "when": "listMultiSelection && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
           "group": "3_compare@12"
         },
         {
           "command": "plotexcel.compareWithRevision",
-          "when": "plotexcel.supported && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i)",
+          "when": "explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
           "group": "3_compare@13"
-        },
-        {
-          "command": "plotexcel.generateLayout",
-          "when": "plotexcel.supported && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i)",
-          "group": "7_modification@10"
-        },
-        {
-          "command": "plotexcel.addToLayout",
-          "when": "plotexcel.supported && plotexcel.hasLayout && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
-          "group": "7_modification@11"
-        },
-        {
-          "command": "plotexcel.copyCell",
-          "when": "plotexcel.supported && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
-          "group": "6_copypath@10"
         },
         {
           "command": "plotexcel.render",
           "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
-          "group": "7_modification@12"
+          "group": "4_render@10"
         },
         {
           "command": "plotexcel.watch",
           "when": "resourceFilename =~ /\\.plotexcel\\.tsv$/i",
-          "group": "7_modification@13"
+          "group": "4_render@11"
         }
       ],
       "editor/title": [

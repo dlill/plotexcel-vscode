@@ -82,6 +82,35 @@ describe('menus and keybindings', () => {
     assert.deepEqual(unset, [], 'a when clause on a key nothing sets is a menu entry that never shows');
   });
 
+  /**
+   * Everything plotExcel adds to a right-click lives in one submenu.
+   *
+   * Spread across the Explorer's own groups, the entries landed nowhere near
+   * each other — Select for Visual Diff sat several separators away from
+   * Generate Table Layout, with unrelated commands between them, and no way to
+   * tell which of them came from this extension.
+   */
+  it('puts everything it adds to the Explorer in one submenu', () => {
+    const explorer = declared.contributes.menus['explorer/context'] ?? [];
+
+    assert.equal(explorer.length, 1, 'one submenu, not a scattering of entries across the Explorer menu');
+    assert.equal(explorer[0]?.submenu, 'plotexcel.explorer');
+    assert.ok((declared.contributes.menus['plotexcel.explorer'] ?? []).length > 1, 'and the submenu holds the commands');
+  });
+
+  it('declares every submenu it points at', () => {
+    const declaredIds = new Set((declared.contributes.submenus ?? []).map((entry) => entry.id));
+
+    const referenced = Object.values(declared.contributes.menus)
+      .flatMap((entries) => entries.map((entry) => entry.submenu))
+      .filter((id): id is string => id !== undefined);
+
+    assert.ok(referenced.length > 0, 'the submenu should actually be used');
+    for (const id of referenced) {
+      assert.ok(declaredIds.has(id), `${id} is referenced by a menu but never declared, so it never appears`);
+    }
+  });
+
   it('gives every command a category, so the palette groups them', () => {
     const uncategorised = declared.contributes.commands
       .filter((entry) => entry.category !== 'plotExcel')

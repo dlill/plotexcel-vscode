@@ -18,6 +18,8 @@ that does not require R.
   through Microsoft Office or LibreOffice; HTML through Chrome or Edge —
   each optional, each detected, none required
 - A cache in the system temp folder, capped and self-pruning
+- Everything plotExcel adds to a right-click sits in one **plotExcel**
+  submenu, rather than scattered through the Explorer's own groups
 - Rendering, previewing, watching and comparing wait for the workspace to be
   trusted, since they run converters over files the folder chose. An untrusted
   folder detects nothing and starts nothing; the notification offers Manage
