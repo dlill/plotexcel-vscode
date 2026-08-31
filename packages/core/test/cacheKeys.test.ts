@@ -14,7 +14,12 @@ function pathsFor(cell: string) {
 
 describe('pipelinePaths', () => {
   it('resolves the source against the layout file directory', () => {
-    assert.equal(pathsFor('figs/a.pdf').source, '/work/project/figs/a.pdf');
+    // Built with path rather than written out: `source` is a real filesystem
+    // path, so on Windows it picks up a drive letter and backslashes. The
+    // `platform` option above only decides how the cache directory is hashed.
+    // What this asserts either way is that the cell resolves against the
+    // layout's folder and not the working directory.
+    assert.equal(pathsFor('figs/a.pdf').source, path.join(path.resolve(baseDir), 'figs', 'a.pdf'));
   });
 
   it('names the four stages after the input that produced them', () => {
