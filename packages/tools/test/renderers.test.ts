@@ -1,29 +1,11 @@
 import assert from 'node:assert/strict';
-
-import { decodePng } from '../../core/src/image/png.ts';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { countPdfPages } from '../../core/src/documents/pageCount.ts';
-import { listZip, readZipEntry } from '../../core/src/zip/zip.ts';
-import { createChromiumConverter } from '../src/converters/chromium.ts';
-import { createLibreOfficeConverter } from '../src/converters/libreoffice.ts';
-import { fitWorkbookToOnePage } from '../src/converters/xlsxPageSetup.ts';
-import {
-  chromiumLookup,
-  findExecutable,
-  ghostscriptLookup,
-  gitLookup,
-  libreOfficeLookup,
-  popplerLookup,
-} from '../src/detect.ts';
-import { combineConverters, inspectMachine, summarise } from '../src/discover.ts';
-import { MissingExecutableError, run } from '../src/exec.ts';
-import { createGitRevisionReader } from '../src/git.ts';
+import { decodePng } from '../../core/src/image/png.ts';
+import { findExecutable, ghostscriptLookup, popplerLookup } from '../src/detect.ts';
 import { createGhostscriptRenderer } from '../src/renderers/ghostscript.ts';
 import { createPopplerRenderer } from '../src/renderers/poppler.ts';
 
@@ -31,11 +13,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const fixtures = path.join(here, '..', '..', 'core', 'test', 'fixtures');
 const irisPdf = readFileSync(path.join(fixtures, 'docs', '01-Iris.pdf'));
 const multiPdf = readFileSync(path.join(fixtures, 'docs', '04-IrisMulti.pdf'));
-const wordDocx = readFileSync(path.join(fixtures, 'docs', '21-Word.docx'));
-
-function scratch(): string {
-  return mkdtempSync(path.join(os.tmpdir(), 'plotexcel-tools-'));
-}
 
 // Integration: needs a PDF rasteriser. Its own file so the process starts clean.
 
