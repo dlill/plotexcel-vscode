@@ -235,6 +235,26 @@ describe('the package as it ships', () => {
     }
   });
 
+  /**
+   * `vsce` resolves dependencies against the npm workspace root, not the
+   * extension folder, so without this flag it walks up out of the package and
+   * tries to ship the whole repository — sources, fixtures and `.git` with it.
+   * It fails outright on the first path it cannot express, which is the only
+   * reason nobody shipped it by accident.
+   */
+  it('packages without letting vsce walk out of the extension folder', () => {
+    const scripts = JSON.parse(readFileSync(path.join(extensionRoot, 'package.json'), 'utf8')).scripts as Record<
+      string,
+      string
+    >;
+
+    assert.match(
+      scripts['package'] ?? '',
+      /--no-dependencies\b/,
+      'the extension is bundled and has no runtime dependencies, so vsce must not resolve any',
+    );
+  });
+
   it('activates on something, and not on everything', () => {
     assert.ok(declared.activationEvents.length > 0);
     assert.ok(

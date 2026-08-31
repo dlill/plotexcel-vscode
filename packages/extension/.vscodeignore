@@ -2,7 +2,9 @@
 # bundled file, so the sources it was built from stay out.
 .vscode/**
 src/**
+test/**
 tsconfig.json
+.gitignore
 node_modules/**
 **/*.map
 !dist/extension.js
