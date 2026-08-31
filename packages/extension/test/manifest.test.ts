@@ -285,6 +285,21 @@ describe('the package as it ships', () => {
   });
 
   /**
+   * `dist/` is ignored by git, so a fresh clone — every CI checkout — does not
+   * have one, and vsce does not create the folder it was told to write into.
+   * It fails with ENOENT after building the bundle, which is late enough to
+   * look like a packaging bug rather than a missing directory.
+   */
+  it('creates the output folder, which a fresh clone does not have', () => {
+    const scripts = JSON.parse(readFileSync(path.join(extensionRoot, 'package.json'), 'utf8')).scripts as Record<
+      string,
+      string
+    >;
+
+    assert.match(scripts['package'] ?? '', /mkdirSync/, 'packaging into an ignored folder has to create it first');
+  });
+
+  /**
    * The release workflow used to call `npx vsce package` itself, which meant
    * the flag above protected the local command and nothing else — the first
    * release ever attempted died in CI on the path the flag exists to prevent.

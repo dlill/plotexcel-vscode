@@ -43,7 +43,7 @@
     "licence": "node -e \"require('fs').copyFileSync('../../LICENSE','LICENSE')\"",
     "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:mupdf --format=cjs --platform=node --target=node20",
     "watch": "npm run build -- --sourcemap --watch",
-    "package": "vsce package --no-dependencies --out ../../dist/plotexcel.vsix",
+    "package": "node -e \"require('fs').mkdirSync('../../dist',{recursive:true})\" && vsce package --no-dependencies --out ../../dist/plotexcel.vsix",
     "publish": "vsce publish"
   },
   "devDependencies": {
