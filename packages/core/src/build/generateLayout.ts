@@ -50,9 +50,34 @@ export interface GenerateFromFolderOptions {
   /** Add a column showing each plot at this revision, plus a diff column. */
   readonly compareToCommit?: string | undefined;
   readonly options?: LayoutOptions | undefined;
+  /** How to count pages. Without it, only formats that carry a count get one. */
+  readonly pageCounter?: PageCounter | undefined;
 }
 
 const DEFAULT_PAGES_MAX = 4;
+
+/**
+ * How a caller counts a file's pages.
+ *
+ * Injected rather than imported so that `core` stays unaware of `tools`: an
+ * HTML file has no page count until a browser has laid it out, and the caller
+ * is the one holding the browser. Pass `countSourcePages` from
+ * `pipeline/sourcePages.ts` to get real counts; leave it out and every format
+ * that cannot be counted from its own structure comes back as one page, which
+ * is what happened before this existed.
+ */
+export type PageCounter = (absolutePath: string) => Promise<PageCount>;
+
+async function countWith(counter: PageCounter | undefined, absolutePath: string): Promise<PageCount> {
+  if (counter === undefined) return countSafely(absolutePath);
+
+  try {
+    return await counter(absolutePath);
+  } catch {
+    // A counter that throws is not a reason to abandon the whole folder.
+    return countSafely(absolutePath);
+  }
+}
 
 /** Walk a folder and turn every plot it holds into rows. */
 export async function generateFromFolder(options: GenerateFromFolderOptions): Promise<GeneratedLayout> {
@@ -63,19 +88,24 @@ export async function generateFromFolder(options: GenerateFromFolderOptions): Pr
   const found = await findPlotFiles(folder, options.exclude);
   const ordered = options.include === undefined ? found : orderBy(found, options.include);
 
-  const files: DiscoveredFile[] = ordered.map((relativePath) => {
-    const absolutePath = path.join(folder, relativePath);
-    const count = countSafely(absolutePath);
+  // Sequentially, not with Promise.all: counting may mean starting
+  // LibreOffice or a browser, and a folder of thirty documents must not try to
+  // start thirty of them at once.
+  const files: DiscoveredFile[] = [];
 
-    return {
+  for (const relativePath of ordered) {
+    const absolutePath = path.join(folder, relativePath);
+    const count = await countWith(options.pageCounter, absolutePath);
+
+    files.push({
       relativePath,
       absolutePath,
       pages: count.pages,
       included: Math.min(count.pages, cap),
       confidence: count.confidence,
       reason: count.reason,
-    };
-  });
+    });
+  }
 
   const columns = options.compareToCommit === undefined
     ? ['Description', 'Plot']
@@ -120,6 +150,8 @@ export interface GenerateComparisonOptions {
   /** Output rows to leave blank for each side, so pages line up again. */
   readonly skipFirst?: readonly number[] | undefined;
   readonly skipSecond?: readonly number[] | undefined;
+  /** How to count pages. Without it, only formats that carry a count get one. */
+  readonly pageCounter?: PageCounter | undefined;
 }
 
 /**
@@ -130,7 +162,7 @@ export interface GenerateComparisonOptions {
  * correspond sit on the same row. That is a job for a person looking at the
  * output, which is why the answer is an editable file rather than a workbook.
  */
-export function generateComparison(options: GenerateComparisonOptions): GeneratedLayout {
+export async function generateComparison(options: GenerateComparisonOptions): Promise<GeneratedLayout> {
   const resolution = options.resolution ?? 150;
   const first = path.resolve(options.first);
   const comparingRevisions = options.second === undefined;
@@ -140,8 +172,9 @@ export function generateComparison(options: GenerateComparisonOptions): Generate
   }
 
   const second = comparingRevisions ? first : path.resolve(options.second!);
-  const firstCount = countSafely(first);
-  const secondCount = comparingRevisions ? firstCount : countSafely(second);
+  const firstCount = await countWith(options.pageCounter, first);
+  // Comparing a file against its own earlier revision: one file, one count.
+  const secondCount = comparingRevisions ? firstCount : await countWith(options.pageCounter, second);
 
   const relativeFirst = toPosix(path.relative(options.layoutDir, first));
   const relativeSecond = toPosix(path.relative(options.layoutDir, second));
@@ -204,6 +237,8 @@ export interface GenerateFolderComparisonOptions {
   readonly resolution?: number | undefined;
   readonly nPagesMax?: number | undefined;
   readonly exclude?: RegExp | undefined;
+  /** How to count pages. Without it, only formats that carry a count get one. */
+  readonly pageCounter?: PageCounter | undefined;
 }
 
 /**
@@ -247,7 +282,7 @@ export async function generateFolderComparison(options: GenerateFolderComparison
     // Only the working tree is on disk, so that is where pages are counted.
     // A file that exists solely in the revision falls back to one page.
     const reference = path.join(inLeft ? left : right, relativePath);
-    const count = countSafely(reference);
+    const count = await countWith(options.pageCounter, reference);
     const pages = Math.min(count.pages, cap);
 
     files.push({

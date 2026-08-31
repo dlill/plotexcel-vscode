@@ -115,13 +115,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   await updateLayoutContext();
   context.subscriptions.push(watchForLayouts());
 
-  // Everything this extension can do needs a folder open, and "nothing
-  // happens" is the worst possible answer to a command. The menus check this.
-  await vscode.commands.executeCommand(
-    'setContext',
-    'plotexcel.supported',
-    (vscode.workspace.workspaceFolders ?? []).length > 0,
-  );
+  // No `plotexcel.supported` key here on purpose. It used to be set at the end
+  // of activation and the Explorer menu and the tree view were gated on it,
+  // which was circular: browsing the Explorer does not activate the extension,
+  // so the key did not exist, so the menu stayed hidden — until something else
+  // activated it, at which point the menu appeared for the rest of the session.
+  // It only ever meant "a folder is open", which VS Code answers itself with
+  // `workspaceFolderCount != 0`. The menus ask VS Code instead.
 
   await firstRun(context);
   log().info('plotExcel is ready.');

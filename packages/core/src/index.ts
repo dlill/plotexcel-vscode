@@ -25,6 +25,8 @@ export * from './documents/pageCount.ts';
 export * from './pipeline/ports.ts';
 export * from './pipeline/limit.ts';
 export * from './pipeline/files.ts';
+export * from './pipeline/convert.ts';
+export * from './pipeline/sourcePages.ts';
 export * from './pipeline/renderPlot.ts';
 export * from './pipeline/renderDiff.ts';
 

@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { generateComparison, generateFolderComparison } from '../../../core/src/build/generateLayout.ts';
 import { formatLayout, type LayoutFile } from '../../../core/src/layout/layoutFile.ts';
 import { createGitRevisionReader } from '../../../tools/src/git.ts';
-import { requireTrust, settings } from '../machine.ts';
+import { pageCounter, requireTrust, settings } from '../machine.ts';
 import { log } from '../output.ts';
 import type { SelectionState } from '../selection.ts';
 import { chooseFolder, ensureProjectFolder, layoutUriFor } from '../storage.ts';
@@ -54,6 +54,7 @@ export async function compareWithSelectedCommand(state: SelectionState, uri?: vs
             layoutDir,
             resolution: settings().defaultResolution,
             nPagesMax: settings().nPagesMax,
+            pageCounter: await pageCounter(layoutDir),
           })
       : async (layoutDir) =>
           generateComparison({
@@ -61,6 +62,7 @@ export async function compareWithSelectedCommand(state: SelectionState, uri?: vs
             second: uri.fsPath,
             layoutDir,
             resolution: settings().defaultResolution,
+            pageCounter: await pageCounter(layoutDir),
           }),
     uri,
     `${basename(selection.uri)}-vs-${basename(uri)}`,
@@ -86,6 +88,7 @@ export async function compareTwoSelectedCommand(_uri?: vscode.Uri, uris?: vscode
         second: second.fsPath,
         layoutDir,
         resolution: settings().defaultResolution,
+        pageCounter: await pageCounter(layoutDir),
       }),
     first,
     `${basename(first)}-vs-${basename(second)}`,
@@ -143,6 +146,7 @@ export async function compareWithRevisionCommand(state: SelectionState, uri?: vs
           layoutDir,
           resolution: configuration.defaultResolution,
           nPagesMax: configuration.nPagesMax,
+          pageCounter: await pageCounter(layoutDir),
         }),
       target,
       `${basename(target)}-vs-${picked.revision.shortHash}`,
@@ -155,6 +159,7 @@ export async function compareWithRevisionCommand(state: SelectionState, uri?: vs
           commit,
           layoutDir,
           resolution: configuration.defaultResolution,
+          pageCounter: await pageCounter(layoutDir),
         }),
       target,
       `${basename(target)}-vs-${picked.revision.shortHash}`,

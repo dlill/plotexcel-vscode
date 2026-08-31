@@ -3,13 +3,12 @@ import path from 'node:path';
 import * as vscode from 'vscode';
 
 import { resolveOutputPath, workbookNamePattern } from '../../../core/src/build/renderLayout.ts';
-import { countPages } from '../../../core/src/documents/pageCount.ts';
 import { removeOption, renumberCaption, setOption } from '../../../core/src/layout/editCell.ts';
 import { formatLayout, isLayoutFile, parseLayout, type LayoutFile } from '../../../core/src/layout/layoutFile.ts';
 import { plotExtensionOf } from '../../../core/src/spec/classify.ts';
 import { columnNames } from '../language/cells.ts';
 import { resolveLayoutUri } from '../layouts.ts';
-import { settings } from '../machine.ts';
+import { pageCounter, settings } from '../machine.ts';
 import { log } from '../output.ts';
 import { plotCellUnderCursor } from './preview.ts';
 
@@ -43,7 +42,7 @@ export async function insertPlotCommand(): Promise<void> {
 
   for (const uri of picked) {
     const relative = relativePath(layoutDir, uri);
-    for (const page of pagesOf(uri, configuration.nPagesMax)) {
+    for (const page of await pagesOf(uri, configuration.nPagesMax, layoutDir.fsPath)) {
       lines.push(
         `${relative.split('/').join(' / ')}, page ${page}::vcenter\t` +
           `${relative}::page ${page}::resolution ${configuration.defaultResolution}`,
@@ -84,7 +83,7 @@ export async function addToLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[]):
 
   for (const target of targets) {
     const relative = relativePath(layoutDir, target);
-    for (const page of pagesOf(target, configuration.nPagesMax)) {
+    for (const page of await pagesOf(target, configuration.nPagesMax, layoutDir.fsPath)) {
       const row = new Array(Math.max(1, layout.columns.length)).fill('');
       row[0] = `${relative.split('/').join(' / ')}, page ${page}::vcenter`;
       if (row.length > 1) row[1] = `${relative}::page ${page}::resolution ${configuration.defaultResolution}`;
@@ -222,7 +221,8 @@ export async function expandPagesCommand(): Promise<void> {
 
   let total: number;
   try {
-    const count = countPages(source.fsPath);
+    const counter = await pageCounter(vscode.Uri.joinPath(document.uri, '..').fsPath);
+    const count = await counter(source.fsPath);
     total = count.pages;
     if (count.confidence === 'estimated') {
       log().warn(`Page count for ${found.spec.path} is an estimate: ${count.reason ?? ''}`);
@@ -375,9 +375,15 @@ async function pickPlots(placeHolder: string): Promise<vscode.Uri[]> {
   return (picked ?? []).map((item) => item.uri);
 }
 
-function pagesOf(uri: vscode.Uri, capacity: number): number[] {
+/**
+ * Converting to count, so an HTML plot inserted here gets all of its pages.
+ * The conversion is cached under a path the render will look in, so it is
+ * borrowed from the render rather than added to it.
+ */
+async function pagesOf(uri: vscode.Uri, capacity: number, layoutDir: string): Promise<number[]> {
   try {
-    const count = countPages(uri.fsPath);
+    const counter = await pageCounter(layoutDir);
+    const count = await counter(uri.fsPath);
     return Array.from({ length: Math.min(count.pages, capacity) }, (_, index) => index + 1);
   } catch {
     return [1];

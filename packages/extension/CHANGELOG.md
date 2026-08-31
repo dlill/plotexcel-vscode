@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- **The plotExcel right-click menu appears straight away.** It used to be
+  missing until something else had woken the extension up, so it arrived only
+  after running a command such as **Check My Setup** — and then stayed for the
+  rest of the session.
+- **HTML plots get all of their pages.** An HTML file has no page count until a
+  browser has laid it out, so **Generate Table Layout** only ever gave it one
+  row and the other pages were never asked for. It is now converted and counted
+  properly, which also fixes **One Row per Page** and **Add to Layout** for HTML.
+  Generating is cancellable, since it may have to start a browser per file.
+- **Word, PowerPoint, Excel and HTML plots convert once instead of once per
+  page.** The converted PDF is cached and shared by every page and every
+  resolution of the same file, so a six-page HTML plot starts one browser rather
+  than six — and after generating a layout, rendering it starts none at all.
+  Changing `#resolution:` or adding a page no longer re-runs the converter.
+
 ## 0.2.0 — 2026-08-31
 
 - **PDF plots work with nothing installed.** MuPDF ships inside the extension,

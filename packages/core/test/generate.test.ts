@@ -118,6 +118,44 @@ describe('generateFromFolder', () => {
     for (const file of generated.uncertain) assert.ok(file.reason, `${file.relativePath} should say why`);
   });
 
+  it('uses the page count a caller can work out, not only the one in the file', async () => {
+    // The bug this replaced: an HTML plot has no page count of its own, so it
+    // came back as one page and the layout asked for page 1 and nothing else.
+    // Counting needs a converter, which core cannot reach — hence the
+    // injection. Faked here, because a browser has no place in a unit test.
+    const root = tree();
+    const generated = await generateFromFolder({
+      folder: root,
+      layoutDir: root,
+      nPagesMax: 10,
+      pageCounter: async (absolutePath) =>
+        absolutePath.endsWith('single.pdf')
+          ? { pages: 5, confidence: 'exact' }
+          : { pages: 1, confidence: 'exact' },
+    });
+
+    const rows = generated.layout.rows.filter((row) => row[1]?.includes('single.pdf') === true);
+    assert.equal(rows.length, 5, 'the injected count decides how many rows a file gets');
+    assert.match(rows[4]![1]!, /::page 5::/);
+  });
+
+  it('falls back to the structural count when the injected counter fails', async () => {
+    const root = tree();
+    const generated = await generateFromFolder({
+      folder: root,
+      layoutDir: root,
+      nPagesMax: 10,
+      pageCounter: async () => {
+        throw new Error('no converter today');
+      },
+    });
+
+    // multi.pdf carries three pages in its own page tree, so a counter that
+    // cannot answer must not cost the rows that were never in doubt.
+    const rows = generated.layout.rows.filter((row) => row[1]?.includes('multi.pdf') === true);
+    assert.equal(rows.length, 3);
+  });
+
   it('round-trips through the layout format', async () => {
     const root = tree();
     const generated = await generateFromFolder({ folder: root, layoutDir: root });
@@ -130,9 +168,9 @@ describe('generateFromFolder', () => {
 });
 
 describe('generateComparison', () => {
-  it('lays two files out page by page with a diff column', () => {
+  it('lays two files out page by page with a diff column', async () => {
     const root = tree();
-    const generated = generateComparison({
+    const generated = await generateComparison({
       first: path.join(root, 'figs', 'multi.pdf'),
       second: path.join(root, 'figs', 'single.pdf'),
       layoutDir: root,
@@ -145,9 +183,9 @@ describe('generateComparison', () => {
     assert.match(generated.layout.comments.join(' '), /Page counts differ: 3 and 1/);
   });
 
-  it('shifts one side down so corresponding pages line up', () => {
+  it('shifts one side down so corresponding pages line up', async () => {
     const root = tree();
-    const generated = generateComparison({
+    const generated = await generateComparison({
       first: path.join(root, 'figs', 'multi.pdf'),
       second: path.join(root, 'figs', 'multi.pdf'),
       skipSecond: [1],
@@ -158,9 +196,9 @@ describe('generateComparison', () => {
     assert.match(generated.layout.rows[1]![2]!, /::page 1::/);
   });
 
-  it('compares a file against a revision of itself', () => {
+  it('compares a file against a revision of itself', async () => {
     const root = tree();
-    const generated = generateComparison({
+    const generated = await generateComparison({
       first: path.join(root, 'figs', 'single.pdf'),
       commit: 'HEAD~2',
       layoutDir: root,
@@ -170,9 +208,9 @@ describe('generateComparison', () => {
     assert.match(generated.layout.rows[0]![2]!, /::commit HEAD~2$/);
   });
 
-  it('refuses to compare one file against nothing', () => {
-    assert.throws(
-      () => generateComparison({ first: path.join(docs, '01-Iris.pdf'), layoutDir: docs }),
+  it('refuses to compare one file against nothing', async () => {
+    await assert.rejects(
+      generateComparison({ first: path.join(docs, '01-Iris.pdf'), layoutDir: docs }),
       /needs a revision/,
     );
   });

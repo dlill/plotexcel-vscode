@@ -226,7 +226,7 @@
       "explorer/context": [
         {
           "submenu": "plotexcel.explorer",
-          "when": "plotexcel.supported && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i || resourceFilename =~ /\\.plotexcel\\.tsv$/i)",
+          "when": "workspaceFolderCount != 0 && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i || resourceFilename =~ /\\.plotexcel\\.tsv$/i)",
           "group": "7_modification@10"
         }
       ],
@@ -644,7 +644,7 @@
           "id": "plotexcel.view",
           "name": "plotExcel",
           "icon": "$(table)",
-          "when": "plotexcel.supported"
+          "when": "workspaceFolderCount != 0"
         }
       ]
     },

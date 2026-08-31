@@ -3,7 +3,13 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 
-import { generateComparison, generateFolderComparison, generateFromFolder } from '../../core/src/build/generateLayout.ts';
+import {
+  generateComparison,
+  generateFolderComparison,
+  generateFromFolder,
+  type PageCounter,
+} from '../../core/src/build/generateLayout.ts';
+import { countSourcePages } from '../../core/src/pipeline/sourcePages.ts';
 import { NoPdfExporterError, pdfPathFor, workbookToPdf } from '../../core/src/build/exportPdf.ts';
 import {
   renderLayout,
@@ -107,6 +113,7 @@ async function main(argv: readonly string[]): Promise<number> {
       const generated = await generateFromFolder({
         folder,
         layoutDir: path.dirname(out),
+        pageCounter: await pageCounter(path.dirname(out)),
         ...(values.resolution === undefined ? {} : { resolution: Number(values.resolution) }),
         ...(values['max-pages'] === undefined ? {} : { nPagesMax: Number(values['max-pages']) }),
         ...(values.commit === undefined ? {} : { compareToCommit: values.commit }),
@@ -136,12 +143,13 @@ async function main(argv: readonly string[]): Promise<number> {
       const second = positionals[1];
       const out = path.resolve(values.out ?? path.join(process.cwd(), `comparison${LAYOUT_FILE_SUFFIX}`));
 
-      const generated = generateComparison({
+      const generated = await generateComparison({
         first,
         ...(second === undefined ? {} : { second }),
         ...(values.commit === undefined ? {} : { commit: values.commit }),
         layoutDir: path.dirname(out),
         ...(values.resolution === undefined ? {} : { resolution: Number(values.resolution) }),
+        pageCounter: await pageCounter(path.dirname(out)),
       });
 
       await writeLayout(out, generated.layout);
@@ -164,6 +172,7 @@ async function main(argv: readonly string[]): Promise<number> {
         left,
         right,
         layoutDir: path.dirname(out),
+        pageCounter: await pageCounter(path.dirname(out)),
         ...(values.resolution === undefined ? {} : { resolution: Number(values.resolution) }),
         ...(values['max-pages'] === undefined ? {} : { nPagesMax: Number(values['max-pages']) }),
       });
@@ -207,6 +216,18 @@ async function main(argv: readonly string[]): Promise<number> {
 // ------------------------------------------------------------------------- //
 
 type Values = Record<string, string | boolean | undefined>;
+
+/**
+ * A page counter backed by this machine's converters.
+ *
+ * Counting an HTML or Word plot means converting it, which the pipeline caches
+ * at a path that does not depend on page or resolution — so the conversion
+ * paid for here is the one the render would have paid for anyway.
+ */
+async function pageCounter(layoutDir: string): Promise<PageCounter> {
+  const { tools } = await inspectMachine();
+  return (absolutePath) => countSourcePages(absolutePath, { tools, baseDir: layoutDir });
+}
 
 async function render(
   layout: LayoutFile,

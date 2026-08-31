@@ -3,9 +3,10 @@ import path from 'node:path';
 import { pipelinePaths, type CacheKeyOptions } from '../cache/keys.ts';
 import { cropImage, placeholderImage, type PlaceholderKind } from '../image/ops.ts';
 import { decodePng, encodePng, readPngHeader, retagPngDpi } from '../image/png.ts';
-import { convertedExtension, plotExtensionOf } from '../spec/classify.ts';
+import { plotExtensionOf } from '../spec/classify.ts';
 import { pixelsToCm } from '../units.ts';
 import type { PlotSpec } from '../types.ts';
+import { convertToPdfCached, NoConverterError } from './convert.ts';
 import { isFresh, readFileOrUndefined, statOrUndefined, writeFileAtomic } from './files.ts';
 import type { PageSize, RenderedPage, Tools } from './ports.ts';
 
@@ -204,32 +205,24 @@ async function toRenderable(
   extension: string,
   options: RenderPlotOptions,
 ): Promise<StageResult<Renderable>> {
-  const target = convertedExtension(spec);
-  if (target === extension) return { bytes, extension };
-
-  const converter = options.tools?.converter;
-  if (converter === undefined || !converter.canConvert(extension)) {
-    return {
-      issue: {
-        kind: 'no-converter',
-        headline: `Cannot read .${extension} files here`,
-        details: converterAdvice(extension),
-      },
-    };
-  }
-
   try {
-    const pdf = await converter.toPdf({
-      bytes,
-      extension,
-      ...(options.pageSize === undefined ? {} : { pageSize: options.pageSize }),
-    });
-    return { bytes: pdf, extension: 'pdf' };
+    const converted = await convertToPdfCached(spec, bytes, extension, options);
+    return { bytes: converted.bytes, extension: converted.extension };
   } catch (error) {
+    if (error instanceof NoConverterError) {
+      return {
+        issue: {
+          kind: 'no-converter',
+          headline: `Cannot read .${extension} files here`,
+          details: converterAdvice(extension),
+        },
+      };
+    }
+
     return {
       issue: {
         kind: 'convert-failed',
-        headline: `${converter.name} could not convert this file`,
+        headline: `${options.tools?.converter?.name ?? 'The converter'} could not convert this file`,
         details: [path.basename(spec.path), 'Open it in its own application to check that it is not damaged.'],
         cause: messageOf(error),
       },

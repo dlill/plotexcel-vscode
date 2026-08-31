@@ -355,6 +355,50 @@ a ticket before they can open a sample is not an installation instruction.
   binary. The project was already AGPL-3.0-or-later, so this decides nothing it
   had not already decided.
 
+## The convert stage got its cache, and HTML got real page counts
+
+Two bugs reported from the first real use, with one cause between them.
+
+- **The Explorer menu needed the extension to be running already.** It and the
+  tree view were gated on `plotexcel.supported`, which activation set at the
+  *end* of `activate()`. Nothing activates the extension while somebody browses
+  the Explorer, so the key did not exist and the menu stayed hidden — until an
+  unrelated command woke it up, after which it worked for the rest of the
+  session. Reported as "the right-click options only appear once I have run
+  Check My Setup". The key only ever meant "a folder is open", which VS Code
+  answers itself with `workspaceFolderCount != 0`, so the menus ask VS Code and
+  the key is gone. A test asserts the Explorer menu and the views gate on
+  nothing a `plotexcel.*` key could provide.
+- **HTML plots only ever rendered page 1.** Not a rendering bug: `::page 3` of
+  an HTML file always worked. `countPages` reads a file's own structure, and an
+  HTML file has no pages until a browser lays it out, so it answered 1 and every
+  generated layout asked for one page. Counting for real means converting, which
+  is async and needs a browser, and `core` may not reach `tools` — so the
+  counter is injected. `PageCounter` is a parameter of all three generate
+  functions; `countSourcePages` is the implementation the extension and the CLI
+  pass in.
+- **`paths.converted` existed for months and was never written.** `renderPlot`
+  used only `paths.source` and `paths.cropped`, converting in memory and
+  discarding the PDF, so six pages of one HTML plot meant six Chromium launches
+  producing six identical PDFs — despite the file's own docstring promising that
+  "a stage whose output is already current does nothing". Implementing it is
+  what makes counting affordable: `converted` is keyed on the file, its folder
+  and its revision and deliberately not on the page or the resolution, so one
+  conversion serves every page and every dpi. Counting a folder's HTML files
+  while generating a layout leaves the render with nothing to convert —
+  measured at six pages in 0.4 s with no browser started, against roughly
+  thirty seconds before.
+- **Conversions are deduplicated in flight as well as cached on disk.** The
+  pages of one file render concurrently, so without it they all miss the cache
+  in the same instant and convert the same document at once. The `get` and `set`
+  on the in-flight map are not separated by an `await`, which is what makes them
+  atomic. Cold render of three pages went from 5.5 s to 2.3 s, byte-identical
+  output.
+- **Generating a layout is now cancellable.** It can start a browser per file,
+  so it reports which file it is on and can be stopped. Cancelling does not
+  abandon the layout: the files not yet counted fall back to what their own
+  structure says. A short layout is a nuisance, and an editable one.
+
 ## Still open
 
 - **The diff image.** It fades unchanged content, marks changes red and marks

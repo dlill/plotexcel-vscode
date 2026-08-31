@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 
+import type { PageCounter } from '../../core/src/build/generateLayout.ts';
 import type { Tools } from '../../core/src/pipeline/ports.ts';
+import { countSourcePages } from '../../core/src/pipeline/sourcePages.ts';
 import { clearDetectionCache } from '../../tools/src/detect.ts';
 import { inspectMachine, suggestedConcurrency, type CapabilityReport } from '../../tools/src/discover.ts';
 
@@ -123,6 +125,22 @@ export function forgetMachine(): void {
 
 export function concurrency(): number {
   return suggestedConcurrency();
+}
+
+/**
+ * A page counter backed by this machine's converters.
+ *
+ * An HTML plot has no pages until a browser has laid it out, and a Word
+ * document's own count is whatever Word last saw. Both need converting to be
+ * counted, which is why this needs the tools and cannot live in core.
+ *
+ * The cost is not additional: the pipeline caches a conversion under a path
+ * that does not depend on the page or the resolution, so the PDF made to count
+ * the pages is the very one the render then uses.
+ */
+export async function pageCounter(layoutDir: string): Promise<PageCounter> {
+  const { tools } = await machine();
+  return (absolutePath) => countSourcePages(absolutePath, { tools, baseDir: layoutDir });
 }
 
 /** Watch the settings that change what was detected. */

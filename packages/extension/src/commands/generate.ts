@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 
 import { generateFromFolder, type GeneratedLayout } from '../../../core/src/build/generateLayout.ts';
+import { countPages } from '../../../core/src/documents/pageCount.ts';
 import { formatLayout } from '../../../core/src/layout/layoutFile.ts';
 import { LAYOUT_FILE_SUFFIX } from '../../../core/src/layout/layoutFile.ts';
-import { settings } from '../machine.ts';
+import { pageCounter, settings } from '../machine.ts';
 import { log } from '../output.ts';
 import { chooseFolder, ensureProjectFolder, layoutUriFor } from '../storage.ts';
 
@@ -29,15 +30,30 @@ export async function generateLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[
   const paths = await ensureProjectFolder(folder);
   const destination = await layoutUriFor(paths, basename(scanned));
 
+  const layoutDir = parentOf(destination).fsPath;
+  const counter = await pageCounter(layoutDir);
+
+  // Cancellable and per-file, because counting is no longer instant: an HTML or
+  // Word plot has to be converted before anything can say how many pages it
+  // has. Cancelling does not abandon the layout — the files not yet counted
+  // fall back to what their own structure says, which is one page for the
+  // formats that cannot answer. A layout is editable, so a short one is a
+  // nuisance rather than a loss.
   const generated = await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Window, title: 'plotExcel: reading plots…' },
-    async () =>
+    { location: vscode.ProgressLocation.Notification, title: 'plotExcel: reading plots', cancellable: true },
+    async (progress, token) =>
       generateFromFolder({
         folder: scanned.fsPath,
-        layoutDir: parentOf(destination).fsPath,
+        layoutDir,
         resolution: configuration.defaultResolution,
         nPagesMax: configuration.nPagesMax,
         ...(isFolder ? {} : { include: [basename(target)] }),
+        pageCounter: async (absolutePath) => {
+          if (token.isCancellationRequested) return countPages(absolutePath);
+
+          progress.report({ message: absolutePath.split(/[\\/]/).pop() });
+          return counter(absolutePath);
+        },
       }),
   );
 

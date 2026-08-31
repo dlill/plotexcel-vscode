@@ -58,8 +58,37 @@ describe('activation', () => {
   });
 
   it('sets the context keys the menus are gated on', () => {
-    assert.equal(recorder.context.get('plotexcel.supported'), true, 'a folder is open, so the menus should show');
     assert.equal(typeof recorder.context.get('plotexcel.hasLayout'), 'boolean');
+  });
+
+  it('shows the Explorer menu and the view without needing to be activated first', () => {
+    // Both were once gated on `plotexcel.supported`, which activation set at
+    // the end of activate(). That was circular: nothing activates the
+    // extension while somebody browses the Explorer, so the key did not exist,
+    // so the menu stayed hidden — until an unrelated command woke the
+    // extension up, after which it appeared for the rest of the session. The
+    // reported symptom was "the right-click options only appear once I have
+    // run Check My Setup".
+    //
+    // These two surfaces are the ones a person meets *before* the extension
+    // has any reason to be running, so their conditions have to be ones VS
+    // Code can answer on its own. Menus that appear only after something has
+    // happened — a diff selection, a layout being found — are a different
+    // case and may gate on our keys.
+    const entrance = [
+      ...(declared.contributes.menus['explorer/context'] ?? []).map((entry) => entry.when),
+      ...Object.values(declared.contributes.views)
+        .flat()
+        .map((view) => view.when),
+    ];
+
+    for (const when of entrance) {
+      assert.doesNotMatch(
+        when ?? '',
+        /plotexcel\./,
+        `"${when}" needs the extension to be running before it can be true`,
+      );
+    }
   });
 
   it('registers the editor features', () => {
