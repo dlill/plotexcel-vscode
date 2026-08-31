@@ -6,11 +6,13 @@ installation is needed.
 
 **Status.** The engine is complete and tested: layouts, the render pipeline,
 image handling, the workbook writer, the adapters for external tools, and a
-command line that drives all of it. The VS Code layer is written but has not
-been compiled or run, because this repository has no `node_modules` yet.
+command line that drives all of it. The VS Code layer builds, packages to a
+`.vsix` and has been run in an extension host; it is tested against a stub of
+the VS Code API and checked against its own manifest, so a command that would
+fail when pressed fails a test first.
 
 ```
-node --test "packages/core/test/*.test.ts" "packages/tools/test/*.test.ts"   # 151 + 22 tests
+npm test                                                                     # 283 tests, no VS Code, no build step
 node packages/cli/src/main.ts check                                          # what this machine can do
 node packages/cli/src/main.ts generate ./figs --render                       # folder -> layout -> workbook
 ```
