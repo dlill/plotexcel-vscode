@@ -8,7 +8,29 @@
       "script": "watch",
       "path": "packages/extension",
       "isBackground": true,
-      "problemMatcher": "$esbuild-watch",
+      // Spelled out rather than "$esbuild-watch", which is not built in: it
+      // comes from an extension, and F5 fails with "no problemMatcher defined"
+      // on any machine that does not happen to have it.
+      //
+      // What F5 needs from this is only the background signal — begins/ends
+      // tell VS Code the first build has finished so it can launch the host.
+      // esbuild prints the file and line of an error on a later line than the
+      // message, with a blank line between, which no single pattern can span,
+      // so errors arrive in the Problems panel without a location. They are
+      // exact in the task terminal, and `npm test` is the real gate.
+      "problemMatcher": {
+        "owner": "esbuild",
+        "source": "esbuild",
+        "pattern": {
+          "regexp": "^\\s*✘ \\[ERROR\\] (.*)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[watch\\] build started",
+          "endsPattern": "^\\[watch\\] build finished"
+        }
+      },
       "group": { "kind": "build", "isDefault": true },
       "label": "npm: watch - packages/extension"
     }
