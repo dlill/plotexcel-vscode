@@ -12,7 +12,14 @@ what is settled and why. This file is the rules.
 **No runtime dependencies. None.** The `.xlsx` writer, the ZIP writer, the PNG
 codec, the bitmap font and the PDF page counter are all written here, on top of
 `node:zlib` and nothing else. `packages/extension/package.json` has
-`devDependencies` only — esbuild, vsce, typescript, types.
+`devDependencies` only — esbuild, vsce, typescript, types, and MuPDF.
+
+MuPDF is the one thing that came from outside, and it is still a
+`devDependency`: `tools/copy-mupdf.mjs` copies its files into `dist/mupdf/` at
+package time, so nothing `require`s the package at run time and no
+`node_modules` goes into the `.vsix`. Read the MuPDF section of
+`docs/decisions.md` before touching any of it — the loading is deliberately
+odd, and the reasons are not guessable.
 
 This is not asceticism. It buys exact image geometry in EMU (a library's pixel
 rounding was the thing most likely to break fidelity with the R package), an
@@ -124,8 +131,11 @@ for every format, including PNGs that carry their own dpi metadata.
   against its own manifest — but **never run in a real extension host.**
 - `packages/cli`: tested by running it as a process and reading the output.
 - The GitHub workflows have never run.
-- MuPDF is referenced as an optional renderer but the package is not installed,
-  so that path is currently unreachable. Ghostscript and Poppler cover it.
+- MuPDF ships with the extension, so PDF rendering needs nothing installed. It
+  is tried first; Ghostscript and Poppler are still detected and still answer
+  when it is absent, which is the case for the CLI run from a fresh clone.
+- The extension has been installed from a `.vsix` and run in a real host once,
+  on Windows. It activated and rendered. That is one machine and one session.
 
 When you finish something, add a line to `docs/decisions.md` if a decision was
 made, and to `packages/extension/CHANGELOG.md` if a user would notice.

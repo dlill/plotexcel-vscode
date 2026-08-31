@@ -15,6 +15,20 @@ import { inspectMachine, suggestedConcurrency, type CapabilityReport } from '../
 
 let cached: Promise<{ tools: Tools; report: readonly CapabilityReport[] }> | undefined;
 
+let bundledMupdf: string | undefined;
+
+/**
+ * Where the MuPDF build landed inside the installed extension.
+ *
+ * It ships as files beside the bundle rather than inside it, because it is ESM
+ * and finds its `.wasm` through `import.meta.url` — neither survives being
+ * flattened into the CommonJS bundle. Only the host knows the install path, so
+ * activation has to hand it over.
+ */
+export function useBundledMupdf(path: string): void {
+  bundledMupdf = path;
+}
+
 export function settings() {
   const configuration = vscode.workspace.getConfiguration('plotexcel');
 
@@ -68,6 +82,7 @@ export async function machine(): Promise<{ tools: Tools; report: readonly Capabi
   cached ??= inspectMachine({
     officeConverter: current.officeConverter,
     browserPath: current.browserPath,
+    bundledMupdf,
   });
 
   return cached;

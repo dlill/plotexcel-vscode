@@ -1,0 +1,70 @@
+name: package
+
+# A .vsix from any branch, without cutting a release.
+#
+# release.yml is the only thing that publishes, and it only fires on a version
+# tag. That is right for releases and useless for the case this exists for:
+# wanting to install the current branch on a real machine and click around,
+# which is the only way to test the extension at all — the suite runs it
+# against a stub, never in an extension host.
+#
+# The artefact hangs off the run and expires with it. Nothing here writes to
+# the repository, publishes anything, or moves a tag.
+
+on:
+  workflow_dispatch:
+  # Also on a branch whose name says that is what it is for, so pushing is
+  # enough and nobody has to go and find the Actions tab.
+  push:
+    branches: ['build/**']
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - run: npm install
+
+      # Cheap, and they fail in seconds. A .vsix built from sources that do not
+      # even load is not worth waiting for.
+      - run: npm run test:core
+      - run: npm run typecheck
+      - run: node tools/load-extension-sources.mjs
+
+      - name: Build the extension package
+        working-directory: packages/extension
+        run: |
+          npm install --no-save @vscode/vsce
+          npm run package
+
+      # The bundler is the part no test can reach. MuPDF is imported through
+      # `new Function` for the sole reason that esbuild rewrites a visible
+      # dynamic import into a `require()`, and require() of an ESM package that
+      # resolves its own .wasm fails at run time — after installation, on
+      # somebody's machine, reported as "no PDF renderer".
+      #
+      # This opens the archive, checks the indirection survived, and renders a
+      # page with the files that are actually in it. Verified against
+      # deliberately broken archives: it exits 1 when the copy step is skipped
+      # and when the import has been rewritten.
+      - name: Check the package can render a PDF
+        run: node tools/check-packaged-mupdf.mjs
+
+      - name: Report what came out
+        run: ls -lh dist/plotexcel.vsix
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plotexcel-vsix-${{ github.sha }}
+          path: dist/plotexcel.vsix
+          if-no-files-found: error

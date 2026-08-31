@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **PDF plots work with nothing installed.** MuPDF ships inside the extension,
+  so rendering no longer waits on Ghostscript or poppler being present — which
+  on a machine managed by somebody else could mean waiting on a ticket.
+  Ghostscript and poppler are still used when they are there and still named in
+  **Check My Setup**; the difference is that PDF rendering is never missing.
+  This makes the download about 4 MB rather than 64 KB.
+
 ## 0.1.0 — 2026-08-31
 
 First version. A port of the R package [plotExcel](https://github.com/dlill/plotExcel)

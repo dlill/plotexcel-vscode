@@ -8,6 +8,8 @@ tsconfig.json
 node_modules/**
 **/*.map
 !dist/extension.js
+# MuPDF travels as files rather than inside the bundle — see tools/copy-mupdf.mjs.
+!dist/mupdf/**
 !media/**
 !language-configuration.json
 !package.json

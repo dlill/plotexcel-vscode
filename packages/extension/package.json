@@ -39,9 +39,10 @@
     "onView:plotexcel.view"
   ],
   "scripts": {
-    "vscode:prepublish": "npm run licence && npm run build -- --minify",
+    "vscode:prepublish": "npm run licence && npm run mupdf && npm run build -- --minify",
     "licence": "node -e \"require('fs').copyFileSync('../../LICENSE','LICENSE')\"",
-    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:mupdf --format=cjs --platform=node --target=node20",
+    "mupdf": "node ../../tools/copy-mupdf.mjs",
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --target=node20",
     "watch": "npm run build -- --sourcemap --watch",
     "package": "node -e \"require('fs').mkdirSync('../../dist',{recursive:true})\" && vsce package --no-dependencies --out ../../dist/plotexcel.vsix",
     "publish": "vsce publish"
@@ -51,6 +52,7 @@
     "@types/vscode": "^1.90.0",
     "@vscode/vsce": "^3.0.0",
     "esbuild": "^0.28.2",
+    "mupdf": "^1.28.0",
     "typescript": "^5.7.0"
   },
   "capabilities": {

@@ -52,11 +52,17 @@ export interface DiscoverOptions {
   readonly officeConverter?: 'auto' | 'msoffice' | 'libreoffice' | 'off' | undefined;
   /** An explicit browser path from settings, used before any detection. */
   readonly browserPath?: string | undefined;
+  /**
+   * Absolute path to `mupdf.js` inside the installed extension, when there is
+   * one. Only the extension host knows where it landed; the CLI leaves this
+   * unset and MuPDF resolves from node_modules if it is there at all.
+   */
+  readonly bundledMupdf?: string | undefined;
 }
 
 export async function inspectMachine(options: DiscoverOptions = {}): Promise<Machine> {
   const [renderer, office, browser, git] = await Promise.all([
-    findRenderer(),
+    findRenderer(options.bundledMupdf),
     findOfficeConverter(options.officeConverter ?? 'auto'),
     findBrowserConverter(options.browserPath),
     findGit(),
@@ -129,8 +135,10 @@ export function summarise(report: readonly CapabilityReport[]): string {
     .join('\n');
 }
 
-async function findRenderer(): Promise<{ renderer: PdfRenderer; version?: string | undefined } | undefined> {
-  const bundled = await createMupdfRenderer();
+async function findRenderer(
+  bundledMupdf?: string,
+): Promise<{ renderer: PdfRenderer; version?: string | undefined } | undefined> {
+  const bundled = await createMupdfRenderer(bundledMupdf);
   if (bundled !== undefined) return { renderer: bundled };
 
   const ghostscript = await findExecutable('ghostscript', ghostscriptLookup());

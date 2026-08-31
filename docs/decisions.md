@@ -309,16 +309,63 @@ being opened.
   eight bytes that can ask for a 64 GB allocation on their own — A3 at 600 dpi
   is about 70, so nothing the pipeline can legitimately produce comes close.
 
+## MuPDF ships with the extension
+
+Settled after a first run on a real Windows machine, where **Check my setup**
+reported no PDF renderer at all: no Ghostscript, no poppler, and no way to get
+either without a request to a team that manages the machine. Everything else
+that machine needed — Office, a Chromium browser, git — was already there. So
+the one capability that is the whole point of the extension was the one
+capability a locked-down laptop could not have, and telling a colleague to file
+a ticket before they can open a sample is not an installation instruction.
+
+- **MuPDF is a `devDependency`, not a dependency.** Its files are *copied* into
+  `dist/mupdf/` at package time by `tools/copy-mupdf.mjs`; nothing
+  `require`s the package at run time. So `dependencies` stays empty, `vsce
+  package --no-dependencies` stays correct, and the no-runtime-dependencies rule
+  survives in the form that matters — the extension is still a bundle plus
+  assets, with no `node_modules` in the `.vsix`.
+- **It cannot go through esbuild.** The package is ESM-only and its Emscripten
+  glue locates `mupdf-wasm.wasm` with `new URL('mupdf-wasm.wasm',
+  import.meta.url)`. Flattening that into a CommonJS bundle breaks the module
+  format and the asset lookup at once. It travels as files and is loaded by a
+  real dynamic `import()` of a `file://` URL.
+- **The import goes through `new Function`.** esbuild rewrites any dynamic
+  `import()` it can see into a `require()` when the output is CJS, and
+  `require()` cannot load ESM that resolves its own assets. `new Function` is
+  opaque to the bundler, so a genuine dynamic import reaches Node. This is the
+  one place in the repository that hides something from a tool on purpose.
+- **Activation passes the path, rather than the renderer finding it.** Only the
+  host knows where the extension was installed, and `__dirname` in a bundle
+  versus `import.meta.url` in a type-stripped source are different answers to
+  the same question. `useBundledMupdf()` is called once in `activate` with
+  `context.extensionUri`; the CLI passes nothing and MuPDF resolves from
+  `node_modules` if it is installed at all.
+- **The wasm is 10 MB, and that is the price.** It compresses to roughly a third
+  inside the `.vsix`, which is a zip. The `.br` copies in the package are for a
+  web server that can serve pre-compressed responses and are no use here. A
+  build with the copy step skipped installs and activates perfectly and then
+  renders a placeholder for every PDF, so the packaging workflow fails if the
+  wasm is not in the archive.
+- **A generated `package.json` sits beside it.** Just `{"type":"module"}`. The
+  nearest manifest above `dist/mupdf/` would otherwise be the extension's own,
+  which has no `type`, so Node parses `mupdf.js` as CommonJS, fails, warns and
+  reparses — putting `MODULE_TYPELESS_PACKAGE_JSON` in the host log every time.
+- **MuPDF's licence text ships beside it.** AGPL requires it travel with the
+  binary. The project was already AGPL-3.0-or-later, so this decides nothing it
+  had not already decided.
+
 ## Still open
 
-- **PDF renderer.** MuPDF (AGPL, and so decides this repository's licence) or a
-  PDFium binding (permissive, more work). Ghostscript and poppler already work
-  as fallbacks, so this is no longer blocking.
 - **The diff image.** It fades unchanged content, marks changes red and marks
   area covered by only one side amber. It does not imitate ImageMagick's
   composite, and it has not been reviewed by anyone but its author.
-- **Everything in `packages/extension`** — written, loads, never compiled or
-  run. It needs `@types/vscode` and an extension host.
-- **The browser page has no PDF renderer.** If MuPDF is ever compiled to
-  WebAssembly for the extension, the same build would give the page real PDF
-  pages and remove its largest caveat.
+- **`packages/extension` has now been run once**, from a `.vsix` on a Windows
+  machine: it activated, registered, wrote a comparison layout and rendered a
+  workbook. That is one machine, one session, and no automated coverage — the
+  suite still runs it against a stub.
+- **The browser page has no PDF renderer.** MuPDF now ships for the extension,
+  and the same WebAssembly build would give the page real PDF pages and remove
+  its largest caveat. What stops it is that the page loads the core as ES
+  modules from source, so the 10 MB wasm would be a fetch rather than a file,
+  and `packages/browser` must reach no `node:` builtin.

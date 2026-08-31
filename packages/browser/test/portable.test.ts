@@ -63,7 +63,8 @@ describe('the browser build', () => {
 
   it('shares the workbook writer with the extension', async () => {
     const graph = await moduleGraph(entry);
-    const shared = [...graph.keys()].map((file) => path.relative(root, file));
+    // Forward slashes, so the expectations below read the same on Windows.
+    const shared = [...graph.keys()].map((file) => path.relative(root, file).split(path.sep).join('/'));
 
     for (const module of [
       'packages/core/src/xlsx/workbookParts.ts',

@@ -29,7 +29,7 @@ import { registerDrop } from './language/drop.ts';
 import { registerFormatting } from './language/format.ts';
 import { registerHover } from './language/hover.ts';
 import { findLayouts } from './layouts.ts';
-import { isTrusted, watchSettings, watchTrust } from './machine.ts';
+import { isTrusted, useBundledMupdf, watchSettings, watchTrust } from './machine.ts';
 import { log } from './output.ts';
 import { SelectionState } from './selection.ts';
 import { registerView } from './views/plotexcelView.ts';
@@ -44,6 +44,9 @@ import { stopAllWatches, toggleWatchCommand } from './watch.ts';
  * rendering all happen on demand.
  */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+  // Only a path, no loading: MuPDF is read on the first render, not here.
+  useBundledMupdf(vscode.Uri.joinPath(context.extensionUri, 'dist', 'mupdf', 'mupdf.js').fsPath);
+
   const selection = new SelectionState();
   context.subscriptions.push(selection, watchSettings(), watchTrust());
 
