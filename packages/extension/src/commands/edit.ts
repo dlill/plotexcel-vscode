@@ -1,6 +1,8 @@
+import path from 'node:path';
+
 import * as vscode from 'vscode';
 
-import { resolveOutputPath } from '../../../core/src/build/renderLayout.ts';
+import { resolveOutputPath, workbookNamePattern } from '../../../core/src/build/renderLayout.ts';
 import { countPages } from '../../../core/src/documents/pageCount.ts';
 import { removeOption, renumberCaption, setOption } from '../../../core/src/layout/editCell.ts';
 import { formatLayout, isLayoutFile, parseLayout, type LayoutFile } from '../../../core/src/layout/layoutFile.ts';
@@ -283,9 +285,16 @@ export async function openWorkbookCommand(uri?: vscode.Uri): Promise<void> {
 
   const document = await vscode.workspace.openTextDocument(layoutUri);
   const { layout } = parseLayout(document.getText());
+  const declared = resolveOutputPath(layout, layoutUri.fsPath);
+  const outFolder = vscode.Uri.joinPath(layoutUri, '..', '..', 'out');
+
   const candidates = [
-    resolveOutputPath(layout, layoutUri.fsPath),
-    vscode.Uri.joinPath(layoutUri, '..', '..', 'out', `${stem(layoutUri)}.xlsx`).fsPath,
+    declared,
+    vscode.Uri.joinPath(outFolder, `${stem(layoutUri)}.xlsx`).fsPath,
+    // On Windows each render writes a new timestamped file, so the clean name
+    // may never have existed. The newest one is the one just rendered.
+    ...(await newestWorkbooks(vscode.Uri.joinPath(layoutUri, '..'), path.basename(declared, '.xlsx'))),
+    ...(await newestWorkbooks(outFolder, stem(layoutUri))),
   ];
 
   for (const candidate of candidates) {
@@ -305,6 +314,27 @@ export async function openWorkbookCommand(uri?: vscode.Uri): Promise<void> {
 }
 
 // ------------------------------------------------------------------------- //
+
+/**
+ * Workbooks in a folder whose name matches this layout's, newest first.
+ *
+ * Sorted by the timestamp in the name rather than by mtime: the name is what
+ * the render actually chose, and it survives a copy that mtime does not.
+ */
+async function newestWorkbooks(folder: vscode.Uri, stemName: string): Promise<string[]> {
+  const pattern = workbookNamePattern(stemName);
+
+  const entries = await vscode.workspace.fs.readDirectory(folder).then(
+    (found) => found,
+    () => [] as [string, vscode.FileType][],
+  );
+
+  return entries
+    .filter(([name, type]) => type === vscode.FileType.File && pattern.test(name))
+    .map(([name]) => name)
+    .sort((a, b) => b.localeCompare(a))
+    .map((name) => vscode.Uri.joinPath(folder, name).fsPath);
+}
 
 async function activeLayout(): Promise<vscode.TextDocument | undefined> {
   const editor = vscode.window.activeTextEditor;

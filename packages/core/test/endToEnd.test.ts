@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 
-import { renderLayout } from '../src/build/renderLayout.ts';
+import { renderLayout, timestampedWorkbookPath, workbookNamePattern } from '../src/build/renderLayout.ts';
 import { decodePng, encodePng } from '../src/image/png.ts';
 import { parseLayout } from '../src/layout/layoutFile.ts';
 import type { PdfRenderer, Tools } from '../src/pipeline/ports.ts';
@@ -248,5 +248,62 @@ describe('a layout end to end', () => {
     assert.equal(result.issues[0]?.row, 2, 'reported at the row the user sees');
     assert.ok(result.placeholders >= 1, 'and the cell gets a picture explaining itself');
     assert.ok(result.workbook.length > 20_000, 'the rest of the workbook is still built');
+  });
+});
+
+/**
+ * Excel keeps an exclusive lock on a workbook it has open, so on Windows a
+ * second render would fail on the write — after doing all the rasterising.
+ * The name carries the time instead; every other platform overwrites in place.
+ */
+describe('where the workbook is written', () => {
+  it('leaves the name alone everywhere but Windows', () => {
+    const clean = path.join(path.sep, 'plots', 'figures.xlsx');
+
+    assert.equal(timestampedWorkbookPath(clean, { platform: 'linux' }), clean);
+    assert.equal(timestampedWorkbookPath(clean, { platform: 'darwin' }), clean);
+  });
+
+  it('timestamps on Windows, keeping the folder and the extension', () => {
+    const clean = path.join(path.sep, 'plots', 'figures.xlsx');
+    const stamped = timestampedWorkbookPath(clean, { platform: 'win32', now: new Date(2026, 7, 31, 14, 5, 9) });
+
+    assert.equal(path.basename(stamped), 'figures-20260831-140509.xlsx');
+    assert.equal(path.dirname(stamped), path.dirname(clean));
+  });
+
+  it('gives consecutive renders different names, which is the whole point', () => {
+    const clean = path.join(path.sep, 'plots', 'figures.xlsx');
+    const first = timestampedWorkbookPath(clean, { platform: 'win32', now: new Date(2026, 0, 1, 9, 30, 1) });
+    const second = timestampedWorkbookPath(clean, { platform: 'win32', now: new Date(2026, 0, 1, 9, 30, 2) });
+
+    assert.notEqual(first, second);
+  });
+
+  it('recognises the clean name and the timestamped ones, and nothing else', () => {
+    const pattern = workbookNamePattern('figures');
+
+    assert.ok(pattern.test('figures.xlsx'));
+    assert.ok(pattern.test('figures-20260831-140509.xlsx'));
+    assert.ok(!pattern.test('figures-draft.xlsx'), 'a different workbook that merely starts the same way');
+    assert.ok(!pattern.test('other.xlsx'));
+    assert.ok(!pattern.test('figures.xlsx.bak'));
+  });
+
+  it('reads the stem literally, so a dot in the name is not a wildcard', () => {
+    const pattern = workbookNamePattern('figures (v1.2)');
+
+    assert.ok(pattern.test('figures (v1.2).xlsx'));
+    assert.ok(!pattern.test('figures (v1x2).xlsx'));
+  });
+
+  it('names them so that sorting by text sorts by time', () => {
+    const names = ['figures-20260901-090000.xlsx', 'figures-20260831-140509.xlsx', 'figures-20260831-235959.xlsx'];
+
+    assert.deepEqual([...names].sort(), [
+      'figures-20260831-140509.xlsx',
+      'figures-20260831-235959.xlsx',
+      'figures-20260901-090000.xlsx',
+    ]);
   });
 });

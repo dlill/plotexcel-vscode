@@ -307,6 +307,45 @@ export async function renderLayout(layout: LayoutFile, options: RenderLayoutOpti
   };
 }
 
+/**
+ * The same workbook, named so a copy open in Excel cannot block the write.
+ *
+ * Windows only, and this is why: Excel holds an exclusive lock on an open
+ * workbook, so rendering again while the last one is still on screen fails at
+ * the final step — after every page has been rasterised, which is the part
+ * that took the time. A fresh name each render costs a tidy-up later and
+ * saves losing the work now. Nothing locks the file on macOS or Linux, so
+ * they keep the clean name and overwrite in place.
+ *
+ * Deliberately separate from {@link resolveOutputPath}, which has to stay
+ * deterministic: it is also how "Open the Workbook" works out where to look,
+ * and a name containing the current time would never be found twice.
+ */
+export function timestampedWorkbookPath(
+  outputPath: string,
+  options: { readonly platform?: NodeJS.Platform; readonly now?: Date } = {},
+): string {
+  if ((options.platform ?? process.platform) !== 'win32') return outputPath;
+
+  const extension = path.extname(outputPath);
+  const stem = path.basename(outputPath, extension);
+  return path.join(path.dirname(outputPath), `${stem}-${stamp(options.now ?? new Date())}${extension}`);
+}
+
+/** Matches the clean workbook name and every timestamped one beside it. */
+export function workbookNamePattern(stem: string): RegExp {
+  return new RegExp(`^${escapeRegExp(stem)}(-\\d{8}-\\d{6})?\\.xlsx$`, 'i');
+}
+
+/** Sortable, and free of the characters Windows will not put in a file name. */
+function stamp(when: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return (
+    `${when.getFullYear()}${pad(when.getMonth() + 1)}${pad(when.getDate())}` +
+    `-${pad(when.getHours())}${pad(when.getMinutes())}${pad(when.getSeconds())}`
+  );
+}
+
 /** Where the workbook goes: the layout's own `#output:`, or a sibling .xlsx. */
 export function resolveOutputPath(layout: LayoutFile, layoutPath: string, override?: string): string {
   if (override !== undefined) return path.resolve(override);

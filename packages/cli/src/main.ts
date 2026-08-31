@@ -5,7 +5,11 @@ import { parseArgs } from 'node:util';
 
 import { generateComparison, generateFolderComparison, generateFromFolder } from '../../core/src/build/generateLayout.ts';
 import { NoPdfExporterError, pdfPathFor, workbookToPdf } from '../../core/src/build/exportPdf.ts';
-import { renderLayout, type RenderLayoutResult } from '../../core/src/build/renderLayout.ts';
+import {
+  renderLayout,
+  timestampedWorkbookPath,
+  type RenderLayoutResult,
+} from '../../core/src/build/renderLayout.ts';
 import { defaultCacheRoot } from '../../core/src/cache/keys.ts';
 import { formatLayout, parseLayout, LAYOUT_FILE_SUFFIX, type LayoutFile } from '../../core/src/layout/layoutFile.ts';
 import { cacheStats, clearCache, formatBytes } from '../../core/src/pipeline/cache.ts';
@@ -228,13 +232,18 @@ async function render(
     },
   });
 
-  await mkdir(path.dirname(result.outputPath), { recursive: true });
-  await writeFile(result.outputPath, result.workbook);
+  // Only a name plotExcel chose itself gets a timestamp on Windows; --out and
+  // the layout's own #output are answers to "call it this", not suggestions.
+  const named = (typeof values.out === 'string' && values.out.endsWith('.xlsx')) || layout.options.output !== undefined;
+  const outputPath = named ? result.outputPath : timestampedWorkbookPath(result.outputPath);
+
+  await mkdir(path.dirname(outputPath), { recursive: true });
+  await writeFile(outputPath, result.workbook);
 
   if (layout.options.pdf === true) {
     try {
       const pdf = await workbookToPdf(result.workbook, tools, layout.options.pdfPageSize ?? 'single');
-      const target = pdfPathFor(result.outputPath);
+      const target = pdfPathFor(outputPath);
       await writeFile(target, pdf);
       say(`  also wrote ${target}`);
     } catch (error) {
@@ -242,7 +251,7 @@ async function render(
     }
   }
 
-  return result;
+  return { ...result, outputPath };
 }
 
 function summariseRender(result: RenderLayoutResult): string {

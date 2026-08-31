@@ -20,6 +20,10 @@ that does not require R.
 - A cache in the system temp folder, capped and self-pruning
 - Everything plotExcel adds to a right-click sits in one **plotExcel**
   submenu, rather than scattered through the Explorer's own groups
+- On Windows the workbook name carries the time it was rendered, so a copy
+  left open in Excel cannot fail the write after all the rendering is done.
+  macOS and Linux keep the clean name and overwrite in place, and a layout
+  that names its own `#output:` is left alone on every platform
 - Rendering, previewing, watching and comparing wait for the workspace to be
   trusted, since they run converters over files the folder chose. An untrusted
   folder detects nothing and starts nothing; the notification offers Manage

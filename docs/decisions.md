@@ -261,6 +261,24 @@ already commits to, and what it learned along the way.
   carries it, and a check repeated on every child is a check that can
   disagree with itself later.
 
+## Where the workbook lands
+
+- **Windows workbooks carry a timestamp.** Excel takes an exclusive lock on an
+  open workbook, so a second render fails on the write — at the very end, after
+  every page has been rasterised. `figures-20260831-140509.xlsx` costs a
+  tidy-up later and saves losing the work now. Nothing locks the file on macOS
+  or Linux, so they keep the clean name.
+- **Only a name we chose.** `#output:` in the layout, and `--out` on the
+  command line, are answers to "call it this" and are left exactly as written
+  on every platform.
+- **The stamp is not hidden inside `resolveOutputPath`.** That function is also
+  how "Open the Workbook" works out where to look, and a name containing the
+  current time would never be found twice — it would report "not rendered yet"
+  after every successful render. It stays deterministic; the writers apply
+  `timestampedWorkbookPath`, and the opener searches with
+  `workbookNamePattern` and takes the newest. The stamp sorts as text in time
+  order, which is what makes "newest" a string comparison rather than a stat.
+
 ## Hostile input
 
 The extension opens whatever a folder contains and runs converters over it, so

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import { NoPdfExporterError, pdfPathFor, workbookToPdf } from '../../../core/src/build/exportPdf.ts';
-import { renderLayout, resolveOutputPath } from '../../../core/src/build/renderLayout.ts';
+import { renderLayout, resolveOutputPath, timestampedWorkbookPath } from '../../../core/src/build/renderLayout.ts';
 import { CancelledError } from '../../../core/src/pipeline/limit.ts';
 import { formatBytes, pruneCache } from '../../../core/src/pipeline/cache.ts';
 import { warnIfCacheIsFilling } from './maintenance.ts';
@@ -45,10 +45,14 @@ export async function renderCommand(uri?: vscode.Uri, options: { readonly force?
 
   const declaredOutput = resolveOutputPath(loaded.layout, layoutUri.fsPath);
   const usesDefault = loaded.layout.options.output === undefined;
-  const outputPath =
+  const chosen =
     usesDefault && paths !== undefined
       ? defaultOutputFor(paths, basename(layoutUri)).fsPath
       : declaredOutput;
+
+  // A name we chose can carry a timestamp on Windows; one the layout asked for
+  // by name stays exactly as written, because that was a deliberate choice.
+  const outputPath = usesDefault ? timestampedWorkbookPath(chosen) : chosen;
 
   const { tools, report } = await machine();
   const controller = new AbortController();
