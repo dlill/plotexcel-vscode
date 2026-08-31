@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.1 — unreleased
+## 0.1.0 — 2026-08-31
 
 First version. A port of the R package [plotExcel](https://github.com/dlill/plotExcel)
 that does not require R.

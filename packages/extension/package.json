@@ -2,7 +2,7 @@
   "name": "plotexcel",
   "displayName": "plotExcel",
   "description": "Arrange PDF and image plots into an Excel workbook, with cropping, page extraction, git revisions and visual diffs.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "dlill",
   "license": "AGPL-3.0-or-later",
   "icon": "media/icon.png",
@@ -495,7 +495,7 @@
           {
             "id": "plotexcel.sample",
             "title": "Try it on a sample",
-            "description": "A folder of plots, a table, and a workbook \u2014 written for you, so there is something to look at before there is anything to set up. It renders real PDFs, so if this works, this computer can do everything.\n[Open a sample project](command:plotexcel.openSample)",
+            "description": "A folder of plots, a table, and a workbook — written for you, so there is something to look at before there is anything to set up. It renders real PDFs, so if this works, this computer can do everything.\n[Open a sample project](command:plotexcel.openSample)",
             "media": {
               "markdown": "media/walkthrough-sample.md"
             },
@@ -540,7 +540,7 @@
           {
             "id": "plotexcel.render",
             "title": "Render the workbook",
-            "description": "Press the Render button above the table, or run it from the palette. Rendering again is nearly instant \u2014 only what changed is redone.\n[Render](command:plotexcel.render)",
+            "description": "Press the Render button above the table, or run it from the palette. Rendering again is nearly instant — only what changed is redone.\n[Render](command:plotexcel.render)",
             "media": {
               "markdown": "media/walkthrough-render.md"
             },
