@@ -63,6 +63,13 @@ export interface RenderLayoutOptions {
   readonly onProgress?: ((event: ProgressEvent) => void) | undefined;
   /** Stop between cells. The workbook is not written when this fires. */
   readonly signal?: AbortSignal | undefined;
+  /**
+   * The timestamp written into the workbook, for a build that can be compared
+   * byte for byte. Left out, it is the moment of the render — which lands in
+   * `docProps/core.xml` and in every ZIP entry, so two runs a second apart
+   * produce different files.
+   */
+  readonly createdAt?: Date | undefined;
 }
 
 export interface RenderLayoutResult {
@@ -291,6 +298,7 @@ export async function renderLayout(layout: LayoutFile, options: RenderLayoutOpti
     addBorders: layout.options.addBorders === true,
     fitToPage: true,
     ...(options.widthModel === undefined ? {} : { widthModel: options.widthModel }),
+    ...(options.createdAt === undefined ? {} : { createdAt: options.createdAt }),
   });
 
   return {

@@ -235,6 +235,19 @@ describe('a layout end to end', () => {
     const second = await renderLayout(layout, { layoutPath, cacheRoot, tools, createdAt });
 
     assert.ok(first.workbook.equals(second.workbook), 'a reproducible build makes a diff of two workbooks meaningful');
+
+    // `createdAt` used not to exist on the options, so it was accepted and
+    // dropped: the assertion above passed only because both renders landed in
+    // the same second. Changing the stamp has to change the bytes, or the
+    // reproducibility it claims is an accident of timing.
+    const later = await renderLayout(layout, {
+      layoutPath,
+      cacheRoot,
+      tools,
+      createdAt: new Date('2027-06-30T12:00:00Z'),
+    });
+
+    assert.ok(!first.workbook.equals(later.workbook), 'the timestamp must actually reach the workbook');
   });
 
   it('keeps going when a plot is missing, and says which', async () => {
