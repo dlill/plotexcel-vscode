@@ -8,7 +8,19 @@
       "node",
       "vscode"
     ],
-    "noEmit": true
+    "noEmit": true,
+    // The other packages declare `"type": "module"`; this one cannot, because
+    // esbuild bundles it to CommonJS and `main` points at that .js file — Node
+    // would then load the shipped extension as ESM and fail. Under the base
+    // config's NodeNext that made TypeScript read every source here as
+    // CommonJS and reject its own ESM syntax: 263 errors, all of them
+    // "ECMAScript imports and exports cannot be written in a CommonJS file".
+    //
+    // Bundler is what actually happens to these files. esbuild resolves the
+    // imports, not Node, and nothing is emitted from here (noEmit above), so
+    // this changes what is checked and nothing that runs.
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
   "include": [
     "src/**/*.ts"

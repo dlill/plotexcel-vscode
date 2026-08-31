@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { countPages } from '../../../core/src/documents/pageCount.ts';
 import { plotExtensionOf } from '../../../core/src/spec/classify.ts';
 import { settings } from '../machine.ts';
-import { cellAt, headerLine } from './cells.ts';
+import { headerLine } from './cells.ts';
 
 /**
  * Drag a plot from the Explorer straight into a layout.

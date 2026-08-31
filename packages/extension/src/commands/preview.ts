@@ -120,7 +120,7 @@ export async function cropAssistantCommand(context: vscode.ExtensionContext): Pr
   );
 
   context.subscriptions.push(panel);
-  panel.webview.html = cropPage(panel.webview, rendered.png.toString('base64'), found.spec);
+  panel.webview.html = cropPage(rendered.png.toString('base64'), found.spec);
 
   panel.webview.onDidReceiveMessage(async (message: { type: string; crop?: Crop }) => {
     if (message.type !== 'apply' || message.crop === undefined) {
@@ -155,8 +155,14 @@ async function applyCrop(
   await vscode.workspace.applyEdit(edit);
 }
 
-/** Exported so the panel can be rendered and looked at outside VS Code. */
-export function cropPage(webview: vscode.Webview, base64: string, spec: PlotSpec): string {
+/**
+ * Exported so the panel can be rendered and looked at outside VS Code.
+ *
+ * It takes no `Webview`: everything it needs is inlined under a CSP that
+ * allows only `data:` images, so there is no resource to route through
+ * `asWebviewUri` and nothing to ask the webview for.
+ */
+export function cropPage(base64: string, spec: PlotSpec): string {
   const nonce = String(Date.now());
   const start = JSON.stringify({ xmin: spec.xmin, xmax: spec.xmax, ymin: spec.ymin, ymax: spec.ymax });
 
