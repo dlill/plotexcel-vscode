@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-08-31
 
 - **The plotExcel right-click menu appears straight away.** It used to be
   missing until something else had woken the extension up, so it arrived only
