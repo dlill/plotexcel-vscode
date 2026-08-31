@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-08-31
 
 - **PDF plots work with nothing installed.** MuPDF ships inside the extension,
   so rendering no longer waits on Ghostscript or poppler being present — which
