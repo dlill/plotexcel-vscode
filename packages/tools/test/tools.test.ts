@@ -147,6 +147,47 @@ describe('git revisions', () => {
     writeFileSync(outside, 'x');
     assert.equal(await createGitRevisionReader().isTracked(outside), false);
   });
+
+  it('lists what a folder held at a revision, relative to that folder', async () => {
+    const repository = scratch();
+    const git = (...args: string[]) => execFileSync('git', ['-C', repository, ...args], { stdio: 'pipe' });
+
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.com');
+    git('config', 'user.name', 'Test');
+
+    const figures = path.join(repository, 'figs');
+    execFileSync('mkdir', ['-p', path.join(figures, 'supplementary')]);
+    writeFileSync(path.join(figures, 'one.png'), 'one');
+    writeFileSync(path.join(figures, 'supplementary', 'two.png'), 'two');
+    writeFileSync(path.join(repository, 'outside.png'), 'not in figs');
+    git('add', '.');
+    git('commit', '-q', '-m', 'first');
+
+    writeFileSync(path.join(figures, 'three.png'), 'added later');
+    git('add', '.');
+    git('commit', '-q', '-m', 'second');
+
+    const reader = createGitRevisionReader();
+
+    // Paths come back relative to the folder asked about, and a file that sits
+    // beside it rather than inside it is not part of the answer.
+    assert.deepEqual((await reader.listFiles(figures, 'HEAD~1'))?.sort(), ['one.png', 'supplementary/two.png']);
+    assert.deepEqual((await reader.listFiles(figures, 'HEAD'))?.sort(), [
+      'one.png',
+      'supplementary/two.png',
+      'three.png',
+    ]);
+  });
+
+  it('answers undefined for a folder with no repository, rather than an empty list', async () => {
+    // The two mean different things: nothing there yet, versus no history at
+    // all. A caller that confused them would show every plot as newly added.
+    const loose = scratch();
+    writeFileSync(path.join(loose, 'plot.png'), 'x');
+
+    assert.equal(await createGitRevisionReader().listFiles(loose, 'HEAD'), undefined);
+  });
 });
 
 describe('fitWorkbookToOnePage', () => {

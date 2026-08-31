@@ -25,6 +25,7 @@ const UNIT = '\u001f';
 
 export function createGitRevisionReader(command = 'git'): RevisionReader & {
   listRevisions(filePath: string, limit?: number): Promise<Revision[]>;
+  listFiles(folderPath: string, revision: string): Promise<string[] | undefined>;
   repositoryRoot(filePath: string): Promise<string | undefined>;
 } {
   async function repositoryRoot(filePath: string): Promise<string | undefined> {
@@ -96,6 +97,36 @@ export function createGitRevisionReader(command = 'git'): RevisionReader & {
           const [hash = '', shortHash = '', date = '', author = '', subject = ''] = line.split(UNIT);
           return { hash, shortHash, date, author, subject };
         });
+    },
+
+    /**
+     * What a folder held at a revision, relative to the folder itself.
+     *
+     * Comparing a folder against an earlier commit needs both sides' file
+     * lists, and only one of them is on disk. Undefined rather than an empty
+     * array when git cannot answer, so a caller can tell "the folder was
+     * empty then" apart from "there is no repository here" — they lead to
+     * very different tables.
+     */
+    async listFiles(folderPath: string, revision: string): Promise<string[] | undefined> {
+      const root = await repositoryRoot(folderPath);
+      if (root === undefined) return undefined;
+
+      const prefix = relativeTo(root, folderPath);
+      const scope = prefix === '' || prefix === '.' ? '.' : `${prefix}/`;
+
+      const result = await run(command, ['-C', root, 'ls-tree', '-r', '--name-only', revision, '--', scope], {
+        timeoutMs: 30_000,
+      });
+      if (result.code !== 0) return undefined;
+
+      const base = scope === '.' ? '' : scope;
+      return result.stdout
+        .toString('utf8')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0 && line.startsWith(base))
+        .map((line) => line.slice(base.length));
     },
 
     repositoryRoot,

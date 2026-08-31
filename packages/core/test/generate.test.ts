@@ -205,6 +205,93 @@ describe('generateFolderComparison', () => {
   });
 });
 
+/**
+ * A whole folder against its own past. The second side is not on disk, so the
+ * file list comes from the caller and every right-hand cell carries `::commit`.
+ */
+describe('generateFolderComparison, against a revision', () => {
+  it('puts the revision on every cell of the right-hand column', async () => {
+    const left = tree();
+    const generated = await generateFolderComparison({
+      left,
+      commit: 'abc1234',
+      layoutDir: left,
+      nPagesMax: 1,
+    });
+
+    assert.equal(generated.layout.rows.length, 3);
+    for (const row of generated.layout.rows) {
+      assert.doesNotMatch(row[1]!, /::commit/, 'the working tree side is not at a revision');
+      assert.match(row[2]!, /::commit abc1234$/);
+      assert.match(row[3]!, /^diff\(/);
+    }
+  });
+
+  it('names the column after the revision, so the diff cell can refer to it', async () => {
+    const left = tree();
+    const generated = await generateFolderComparison({ left, commit: 'abc1234', layoutDir: left, nPagesMax: 1 });
+
+    assert.equal(generated.layout.columns[2], `${path.basename(left)} at abc1234`);
+    assert.match(generated.layout.rows[0]![3]!, /diff\(`[^`]+`, `[^`]+ at abc1234`\)/);
+  });
+
+  it('shows a plot added since the revision as missing on that side', async () => {
+    const left = tree();
+    copyFileSync(path.join(docs, '01-Iris.pdf'), path.join(left, 'figs', 'brand-new.pdf'));
+
+    // git listed what the folder held then, which does not include the new one.
+    const generated = await generateFolderComparison({
+      left,
+      commit: 'abc1234',
+      commitFiles: ['figs/multi.pdf', 'figs/single.pdf', 'figs/supplementary/notes.docx'],
+      layoutDir: left,
+      nPagesMax: 1,
+    });
+
+    const row = generated.layout.rows.find((candidate) => candidate[0]!.includes('brand-new'));
+    assert.ok(row, 'a plot added since must still get a row');
+    assert.equal(row![2], '', 'it did not exist at that revision');
+    assert.match(row![3]!, /^Only in /);
+  });
+
+  it('shows a plot deleted since the revision as missing from the working tree', async () => {
+    const left = tree();
+    const generated = await generateFolderComparison({
+      left,
+      commit: 'abc1234',
+      commitFiles: ['figs/single.pdf', 'figs/deleted-since.pdf'],
+      layoutDir: left,
+      nPagesMax: 1,
+    });
+
+    const row = generated.layout.rows.find((candidate) => candidate[0]!.includes('deleted-since'));
+    assert.ok(row, 'a plot deleted since must still get a row');
+    assert.equal(row![1], '', 'it is not in the working tree');
+    assert.match(row![2]!, /::commit abc1234$/);
+  });
+
+  it('ignores anything in the revision that is not a plot', async () => {
+    const left = tree();
+    const generated = await generateFolderComparison({
+      left,
+      commit: 'abc1234',
+      commitFiles: ['figs/single.pdf', 'figs/readme.txt', 'Makefile'],
+      layoutDir: left,
+      nPagesMax: 1,
+    });
+
+    const described = generated.layout.rows.map((row) => row[0]!);
+    assert.ok(!described.some((entry) => entry.includes('readme') || entry.includes('Makefile')));
+  });
+
+  it('refuses to compare one folder against nothing', async () => {
+    await assert.rejects(
+      () => generateFolderComparison({ left: tree(), layoutDir: '/tmp', nPagesMax: 1 }),
+      /needs a revision/,
+    );
+  });
+});
+
 describe('cache housekeeping', () => {
   it('measures and empties the cache', async () => {
     const root = mkdtempSync(path.join(os.tmpdir(), 'plotexcel-cache-'));
