@@ -17,11 +17,11 @@
  * for the same reason everything else here is hand-written.
  */
 
-import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { tempScratchRoot } from '../packages/core/src/cache/keys.ts';
 import { listZip, readZipEntry } from '../packages/core/src/zip/zip.ts';
 import { sampleProject } from '../packages/core/src/samples/sampleProject.ts';
 
@@ -87,7 +87,11 @@ const complete = check(
 // ------------------------------------------------------------------ the render
 
 if (complete) {
-  const staging = await mkdtemp(path.join(tmpdir(), 'plotexcel-vsix-'));
+  // Under the one temp root, so that a run interrupted before the tidy-up below
+  // leaves its staging directory somewhere Clear Cache can find it.
+  await mkdir(tempScratchRoot(), { recursive: true });
+
+  const staging = await mkdtemp(path.join(tempScratchRoot(), 'vsix-'));
   const where = path.join(staging, 'mupdf');
   await mkdir(where, { recursive: true });
 
@@ -112,6 +116,10 @@ if (complete) {
     `rendered a page from the packaged MuPDF, ${png.length} bytes of PNG`,
     `the packaged MuPDF produced ${png.length} bytes, which is not a PNG`,
   );
+
+  // The wasm module has the files open, so a failure to remove them is not a
+  // reason to fail the check.
+  await rm(staging, { recursive: true, force: true }).catch(() => undefined);
 }
 
 console.log(failures === 0 ? '\nThe package can render a PDF.' : `\n${failures} failed.`);

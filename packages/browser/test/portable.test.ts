@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { describe, it } from 'node:test';
+
+import { tempDir } from '../../core/test/tmpdir.ts';
 
 const run = promisify(execFile);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -77,7 +78,7 @@ describe('the browser build', () => {
   });
 
   it('bundles into one file with nothing left to fetch', async () => {
-    const out = path.join(tmpdir(), `plotexcel-bundle-${process.pid}.html`);
+    const out = path.join(tempDir('browser-bundle'), 'bundle.html');
 
     try {
       await run(process.execPath, [path.join(root, 'tools/bundle-browser.mjs'), out]);

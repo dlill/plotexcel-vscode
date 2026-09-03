@@ -1,15 +1,20 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { defaultCacheRoot } from '../cache/keys.ts';
+import { defaultCacheRoot, plotexcelTempRoot } from '../cache/keys.ts';
 
 /**
- * Looking after the pipeline cache.
+ * Looking after what plotExcel leaves in the OS temp tree.
  *
- * Intermediates accumulate in the OS temp tree and nothing cleans them on a
- * schedule, so the extension has to: a size cap enforced after each run, and a
- * command that empties the lot and says how much it freed. Both need the same
- * walk, which is here.
+ * Intermediates accumulate there and nothing cleans them on a schedule, so the
+ * extension has to: a size cap enforced after each run, and a command that
+ * empties the lot and says how much it freed. Both need the same walk, which is
+ * here.
+ *
+ * Measuring and emptying cover the whole `plotexcel` temp root, because that is
+ * what someone looking at `%TEMP%` sees and the number has to match it.
+ * Pruning covers the cache alone: it runs on its own, and a working directory a
+ * converter is holding open is nobody's to delete.
  */
 
 export interface CacheEntry {
@@ -26,7 +31,7 @@ export interface CacheStats {
   readonly newestMs?: number | undefined;
 }
 
-export async function cacheStats(root = defaultCacheRoot()): Promise<CacheStats> {
+export async function cacheStats(root = plotexcelTempRoot()): Promise<CacheStats> {
   const entries = await listCache(root);
   const times = entries.map((entry) => entry.modifiedMs).sort((a, b) => a - b);
 
@@ -39,8 +44,8 @@ export async function cacheStats(root = defaultCacheRoot()): Promise<CacheStats>
   };
 }
 
-/** Every file under the cache root, with its size and age. */
-export async function listCache(root = defaultCacheRoot()): Promise<CacheEntry[]> {
+/** Every file under a temp root, with its size and age. */
+export async function listCache(root = plotexcelTempRoot()): Promise<CacheEntry[]> {
   const entries: CacheEntry[] = [];
 
   async function walk(directory: string): Promise<void> {
@@ -62,11 +67,47 @@ export async function listCache(root = defaultCacheRoot()): Promise<CacheEntry[]
   return entries;
 }
 
-/** Empty the cache. Returns what was freed. */
-export async function clearCache(root = defaultCacheRoot()): Promise<{ files: number; bytes: number }> {
-  const before = await cacheStats(root);
-  await fs.rm(root, { recursive: true, force: true }).catch(() => undefined);
-  return { files: before.files, bytes: before.bytes };
+/** Empty everything plotExcel has put in the temp tree. Returns what was freed. */
+export async function clearCache(root = plotexcelTempRoot()): Promise<{ files: number; bytes: number }> {
+  // Only when clearing the real root: given an explicit one — which is what
+  // every test does — its siblings belong to somebody else.
+  const strays = root === plotexcelTempRoot() ? await strayTempDirs() : [];
+
+  let files = 0;
+  let bytes = 0;
+
+  for (const target of [root, ...strays]) {
+    const before = await cacheStats(target);
+    files += before.files;
+    bytes += before.bytes;
+
+    await fs.rm(target, { recursive: true, force: true }).catch(() => undefined);
+  }
+
+  return { files, bytes };
+}
+
+/**
+ * The directories earlier versions left *beside* the temp root.
+ *
+ * Everything used to take `os.tmpdir()` directly with a `mkdtemp` prefix — one
+ * directory per converter run, per test, per staged package — and only the
+ * converters ever cleaned up after themselves. A machine that had run the test
+ * suite for a week held hundreds of `plotexcel-gen-XXXXXX` folders that Clear
+ * Cache neither counted nor removed, because it only looked inside the cache.
+ *
+ * Clearing sweeps them up too. The prefix is ours, so there is nothing else in
+ * there to hit, and once a machine is clean this finds nothing.
+ */
+async function strayTempDirs(): Promise<string[]> {
+  const root = plotexcelTempRoot();
+  const parent = path.dirname(root);
+
+  const entries = await fs.readdir(parent, { withFileTypes: true }).catch(() => []);
+
+  return entries
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(`${path.basename(root)}-`))
+    .map((entry) => path.join(parent, entry.name));
 }
 
 /**

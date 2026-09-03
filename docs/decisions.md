@@ -488,6 +488,32 @@ Two reports, both of them the extension doing something reasonable in silence.
 - **`logs/` is gone.** `ensureProjectFolder` created it on every setup and
   nothing ever wrote to it — the log is a `LogOutputChannel`. The README and
   this file both claimed otherwise.
+- **One temp folder, `<temp>/plotexcel`, with everything under it.** The cache
+  lived there, but every other temporary directory took `os.tmpdir()` straight
+  with a `mkdtemp` prefix — `plotexcel-gen-`, `plotexcel-tools-`,
+  `plotexcel-vsix-`, one per converter run and one per test. Only the
+  converters cleaned up, so a machine that had run the test suite for a week
+  held 384 sibling folders that Clear Cache neither counted nor removed,
+  because it only ever looked inside the cache. Now: `cache/` for
+  intermediates, `scratch/` for working directories, `test/` for fixtures.
+- **Measuring and clearing cover the whole root; pruning covers `cache/`
+  alone.** The number has to match what someone sees in `%TEMP%`, so
+  `cacheStats` walks everything. The automatic size-capped prune runs on its
+  own and must not delete a directory a converter is holding open, so it is
+  confined to the part that is keyed on its inputs and safe to drop at any
+  moment. That is the whole reason the cache moved down a level instead of
+  staying at the root.
+- **Clearing also sweeps the old `plotexcel-*` siblings**, so a machine that
+  ran an earlier version gets tidied once by the button that was already there.
+  Only when clearing the real root: given an explicit one — which is what every
+  test does — its siblings belong to somebody else. There is a test for that
+  distinction, because getting it wrong deletes a caller's data.
+- **`PLOTEXCEL_TEMP_ROOT` exists for the test suite.** `cache --clear` is
+  tested by running it as a process, and it empties whatever the root resolves
+  to. Pointed at the machine's own root it deleted the fixtures of every test
+  file running beside it — which is how this was found: two unrelated suites
+  failed with ENOENT and "not a git repository". Each test process now gets a
+  root of its own, and the CLI subprocess inherits it.
 
 ## Still open
 

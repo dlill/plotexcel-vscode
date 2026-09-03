@@ -16,7 +16,7 @@ import {
   timestampedWorkbookPath,
   type RenderLayoutResult,
 } from '../../core/src/build/renderLayout.ts';
-import { defaultCacheRoot } from '../../core/src/cache/keys.ts';
+import { plotexcelTempRoot } from '../../core/src/cache/keys.ts';
 import { formatLayout, parseLayout, LAYOUT_FILE_SUFFIX, type LayoutFile } from '../../core/src/layout/layoutFile.ts';
 import { cacheStats, clearCache, formatBytes } from '../../core/src/pipeline/cache.ts';
 import { inspectMachine, suggestedConcurrency, summarise } from '../../tools/src/discover.ts';
@@ -197,9 +197,12 @@ async function main(argv: readonly string[]): Promise<number> {
     }
 
     case 'cache': {
-      const root = defaultCacheRoot();
+      // The whole temp root, not `cache/` inside it: what someone wants to know
+      // is how much of their temp folder plotExcel is using, and clearing it
+      // also sweeps up the stray directories older versions left behind.
+      const root = plotexcelTempRoot();
       if (values.clear === true || positionals[0] === 'clear') {
-        const { files, bytes } = await clearCache(root);
+        const { files, bytes } = await clearCache();
         process.stdout.write(`cleared ${files} files, ${formatBytes(bytes)} from ${root}\n`);
         return 0;
       }

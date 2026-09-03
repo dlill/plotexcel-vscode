@@ -20,6 +20,13 @@
   usually one you have since edited.
 - **`.plotexcel/logs/` is not created any more.** It was made on every setup and
   never written to once — the log is an output channel, not a file.
+- **Everything temporary is in one folder, and Clear Cache accounts for all of
+  it.** The cache was in `%TEMP%\plotexcel`, but converter working directories
+  and the project's own test fixtures each took a folder of their own beside it
+  — `plotexcel-gen-a1b2c3` and hundreds more — which Clear Cache neither
+  counted nor removed. Now everything lives under `%TEMP%\plotexcel`, the
+  reported size is the whole of it, and clearing also sweeps up the stray
+  folders left by earlier versions.
 
 - **Lay Out Side by Side.** Select several plots, or several folders, right-click
   and get a layout with one column each — page 3 of every one of them on the

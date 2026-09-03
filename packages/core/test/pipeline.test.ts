@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -14,12 +13,13 @@ import { renderDiff } from '../src/pipeline/renderDiff.ts';
 import { renderPlot } from '../src/pipeline/renderPlot.ts';
 import { parsePlotSpec } from '../src/spec/plotSpec.ts';
 import { listZip, readZipEntry } from '../src/zip/zip.ts';
+import { tempDir } from './tmpdir.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const fixtures = path.join(here, 'fixtures');
 
 function workspace(): { dir: string; cacheRoot: string } {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'plotexcel-test-'));
+  const dir = tempDir('pipeline');
   return { dir, cacheRoot: path.join(dir, 'cache') };
 }
 

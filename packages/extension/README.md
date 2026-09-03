@@ -102,9 +102,11 @@ the rest of the workbook builds normally.
 
 `.plotexcel/` in the workspace root holds generated layouts and workbooks, and
 carries its own `.gitignore` — the extension never edits a file you own.
-Intermediate images go to the system temp folder, keyed on their inputs, so a
-re-render after one edit is close to instant. That cache is capped at 1 GB,
-pruned oldest-first, and plotExcel offers to clear it as it fills.
+Intermediate images go to `plotexcel` in the system temp folder, keyed on their
+inputs, so a re-render after one edit is close to instant. Nothing plotExcel
+writes to that folder lands anywhere else, so **plotExcel: Clear Cache** reports
+and frees the whole of it. The cache is capped at 1 GB, pruned oldest-first, and
+plotExcel offers to clear it as it fills.
 
 **plotExcel: Clean Up the Project Folder…** empties it again. Use it rather than
 Explorer: Excel keeps an exclusive lock on a workbook for as long as it is open,

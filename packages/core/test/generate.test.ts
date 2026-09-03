@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -15,12 +14,13 @@ import {
 } from '../src/build/generateLayout.ts';
 import { formatLayout, parseLayout } from '../src/layout/layoutFile.ts';
 import { cacheStats, clearCache, formatBytes, pruneCache } from '../src/pipeline/cache.ts';
+import { tempDir } from './tmpdir.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const docs = path.join(here, 'fixtures', 'docs');
 
 function tree(): string {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'plotexcel-gen-'));
+  const root = tempDir('generate');
 
   mkdirSync(path.join(root, 'figs', 'supplementary'), { recursive: true });
   mkdirSync(path.join(root, 'node_modules', 'junk'), { recursive: true });
@@ -512,7 +512,7 @@ describe('generateFolderComparison, against a revision', () => {
 
 describe('cache housekeeping', () => {
   it('measures and empties the cache', async () => {
-    const root = mkdtempSync(path.join(os.tmpdir(), 'plotexcel-cache-'));
+    const root = tempDir('cache');
     mkdirSync(path.join(root, 'a'), { recursive: true });
     writeFileSync(path.join(root, 'a', 'one.png'), Buffer.alloc(1000));
     writeFileSync(path.join(root, 'two.png'), Buffer.alloc(2000));
@@ -526,8 +526,25 @@ describe('cache housekeeping', () => {
     assert.equal((await cacheStats(root)).files, 0);
   });
 
+  it('leaves the neighbours of an explicit root alone', async () => {
+    // Clearing the real root also sweeps up the `plotexcel-…` directories older
+    // versions left beside it. Given a root to clear, it must not: here that
+    // would be one test deleting another's fixtures, and in the extension it
+    // would be a caller's own directory.
+    const root = tempDir('cache');
+    const neighbour = tempDir('cache-neighbour');
+
+    writeFileSync(path.join(root, 'one.png'), Buffer.alloc(1000));
+    writeFileSync(path.join(neighbour, 'two.png'), Buffer.alloc(1000));
+
+    const cleared = await clearCache(root);
+
+    assert.deepEqual(cleared, { files: 1, bytes: 1000 }, 'only what was under the root it was given');
+    assert.equal((await cacheStats(neighbour)).files, 1, 'the neighbour survives');
+  });
+
   it('prunes oldest first, down to the limit', async () => {
-    const root = mkdtempSync(path.join(os.tmpdir(), 'plotexcel-cache-'));
+    const root = tempDir('cache');
     const { utimesSync } = await import('node:fs');
 
     for (const [name, age] of [['old.png', 10_000], ['newer.png', 5000], ['newest.png', 0]] as const) {

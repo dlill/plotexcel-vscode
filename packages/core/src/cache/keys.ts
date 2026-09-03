@@ -35,9 +35,46 @@ export interface CacheKeyOptions {
   readonly platform?: NodeJS.Platform;
 }
 
-/** All pipeline intermediates live under one directory in the OS temp tree. */
-export function defaultCacheRoot(): string {
+/**
+ * The one directory in the OS temp tree that plotExcel writes to.
+ *
+ * Everything goes under here — the cache, a converter's working directory, the
+ * test suite's fixtures. It used to be only the cache, and everything else took
+ * `os.tmpdir()` with a `plotexcel-something-` prefix and `mkdtemp`, which left
+ * hundreds of sibling folders in `%TEMP%` that Clear Cache neither counted nor
+ * removed, because it only ever looked inside the cache.
+ */
+export function plotexcelTempRoot(): string {
+  // Overridable because the test suite must not share a root with the machine
+  // it runs on: it exercises `cache --clear` for real, in a subprocess, and
+  // that empties whatever this answers.
+  const override = process.env['PLOTEXCEL_TEMP_ROOT'];
+  if (override !== undefined && override.length > 0) return override;
+
   return path.join(os.tmpdir(), 'plotexcel');
+}
+
+/**
+ * All pipeline intermediates.
+ *
+ * A subdirectory rather than the root itself, so that the automatic size-capped
+ * prune has only cache entries to consider: those are keyed on their inputs and
+ * safe to drop at any moment, which is not true of a directory a converter is
+ * using right now.
+ */
+export function defaultCacheRoot(): string {
+  return path.join(plotexcelTempRoot(), 'cache');
+}
+
+/**
+ * Short-lived working directories: converter profiles, staging, test fixtures.
+ *
+ * Whoever makes one is responsible for removing it. This is where they go so
+ * that the ones that escape — a killed process, a crashed converter — are
+ * somewhere Clear Cache can find them.
+ */
+export function tempScratchRoot(): string {
+  return path.join(plotexcelTempRoot(), 'scratch');
 }
 
 /** Resolve a layout cell's path against the directory of the layout file. */

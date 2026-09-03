@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import os from 'node:os';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { listZip, readZipEntry } from '../../core/src/zip/zip.ts';
+import { tempDir } from '../../core/test/tmpdir.ts';
 import { fitWorkbookToOnePage } from '../src/converters/xlsxPageSetup.ts';
 import { findExecutable, gitLookup } from '../src/detect.ts';
 import { inspectMachine, summarise } from '../src/discover.ts';
@@ -17,7 +17,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const fixtures = path.join(here, '..', '..', 'core', 'test', 'fixtures');
 
 function scratch(): string {
-  return mkdtempSync(path.join(os.tmpdir(), 'plotexcel-tools-'));
+  return tempDir('tools');
 }
 
 // Fast checks: no heavy external programs are started here.

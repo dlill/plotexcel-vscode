@@ -43,10 +43,10 @@ The whole of what plotExcel *is*, with nothing platform-specific in it.
 | `pipeline/ports.ts` | **The seam.** `PdfRenderer`, `DocumentConverter`, `RevisionReader`, `Tools`. Everything outside arrives here. |
 | `pipeline/renderPlot.ts` | Six stages: locate → checkout at a revision → convert to PDF → rasterise a page → crop → cache. Never throws; a failure becomes a placeholder image that says what is wrong. |
 | `pipeline/renderDiff.ts` | Two rendered pages into a difference image. |
-| `pipeline/cache.ts` | `cacheStats`, `clearCache`, `pruneCache`. Size-capped, oldest-first. |
+| `pipeline/cache.ts` | `cacheStats`, `clearCache`, `pruneCache`. Size-capped, oldest-first. Measuring and clearing cover the whole temp root; pruning only `cache/`. |
 | `pipeline/files.ts` | Atomic writes, freshness by mtime. |
 | `pipeline/limit.ts` | `mapWithLimit` — bounded concurrency with cancellation. |
-| `cache/keys.ts` | Every intermediate path, derived from the inputs. Change the page, the dpi or the crop and you get a different path; that is what makes the pipeline idempotent. Case-folded on Windows and macOS. |
+| `cache/keys.ts` | Every intermediate path, derived from the inputs. Change the page, the dpi or the crop and you get a different path; that is what makes the pipeline idempotent. Case-folded on Windows and macOS. Also the one temp root everything goes under: `<temp>/plotexcel/{cache,scratch,test}`. |
 | `image/png.ts` | A complete PNG codec. Decodes every non-interlaced form (1/2/4/8/16-bit, all five filters, `pHYs`); encodes with adaptive filtering. |
 | `image/ops.ts` | Crop, difference (YIQ, pixelmatch-style threshold), placeholder images. |
 | `image/font.ts` | A 5x7 bitmap font, upper and lower case. The placeholders have to say something and there is no font library. |
@@ -102,8 +102,10 @@ against its own manifest.
 
 `storage.ts` is the rule about where things go: everything project-scoped under
 `<workspace>/.plotexcel/`, which carries a one-line `*` gitignore so it ignores
-itself. Pipeline intermediates go to the system temp folder instead — they are
-reproducible and there can be thousands.
+itself. Pipeline intermediates go to `<temp>/plotexcel` instead — they are
+reproducible and there can be thousands — and so does every other temporary
+thing, which is what lets Clear Cache report a number that matches what is
+actually in `%TEMP%`.
 
 ---
 

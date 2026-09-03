@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 
@@ -11,6 +10,7 @@ import type { PdfRenderer, Tools } from '../src/pipeline/ports.ts';
 import { sampleProject } from '../src/samples/sampleProject.ts';
 import { listZip, readZipEntry } from '../src/zip/zip.ts';
 import { EMU_PER_CM } from '../src/xlsx/workbookParts.ts';
+import { tempDir } from './tmpdir.ts';
 
 /**
  * A layout in, a workbook out, checked by reading the workbook back.
@@ -74,7 +74,7 @@ describe('a layout end to end', () => {
   let tools: Tools;
 
   before(async () => {
-    folder = await mkdtemp(path.join(tmpdir(), 'plotexcel-e2e-'));
+    folder = tempDir('end-to-end');
     cacheRoot = path.join(folder, 'cache');
 
     const project = sampleProject();

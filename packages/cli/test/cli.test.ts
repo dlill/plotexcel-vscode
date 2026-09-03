@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +9,7 @@ import { promisify } from 'node:util';
 import { listZip } from '../../core/src/zip/zip.ts';
 import { parseLayout } from '../../core/src/layout/layoutFile.ts';
 import { sampleProject } from '../../core/src/samples/sampleProject.ts';
+import { tempDir } from '../../core/test/tmpdir.ts';
 
 /**
  * The command line, run as a command line.
@@ -51,7 +51,7 @@ describe('the command line', () => {
   let folder: string;
 
   before(async () => {
-    folder = await mkdtemp(path.join(tmpdir(), 'plotexcel-cli-'));
+    folder = tempDir('cli');
 
     const project = sampleProject();
     for (const file of project.files) {

@@ -1,7 +1,8 @@
 import { execFile, spawn } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
-import os from 'node:os';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
+
+import { tempScratchRoot } from '../../core/src/cache/keys.ts';
 
 /**
  * Running external programs, with the sharp edges blunted.
@@ -174,9 +175,19 @@ export async function runOrThrow(command: string, args: readonly string[], optio
   return result.stdout;
 }
 
-/** Give a callback a private directory, and clean it up afterwards. */
+/**
+ * Give a callback a private directory, and clean it up afterwards.
+ *
+ * Under `<temp>/plotexcel/scratch` rather than straight in `os.tmpdir()`: the
+ * `finally` below covers every ordinary exit, but a killed process or a
+ * converter that takes the window down with it leaves the directory behind, and
+ * there it is somewhere Clear Cache both counts and removes.
+ */
 export async function withScratchDir<T>(prefix: string, work: (directory: string) => Promise<T>): Promise<T> {
-  const directory = await mkdtemp(path.join(os.tmpdir(), `${prefix}-`));
+  const root = tempScratchRoot();
+  await mkdir(root, { recursive: true });
+
+  const directory = await mkdtemp(path.join(root, `${prefix}-`));
   try {
     return await work(directory);
   } finally {
