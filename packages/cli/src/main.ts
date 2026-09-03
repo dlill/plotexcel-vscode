@@ -54,7 +54,7 @@ const USAGE = `plotExcel — arrange plots into an Excel workbook
 Options
   -o, --out <path>       Where to write the layout or workbook
   -r, --resolution <dpi> Rasterisation resolution (default 150)
-  -m, --max-pages <n>    Pages to take from any one file (default 4)
+  -m, --max-pages <n>    Pages to take from any one file (default 25)
   -c, --commit <rev>     Revision to compare against
       --render           Render the layout as soon as it is generated
       --force            Ignore cached intermediates
@@ -129,6 +129,7 @@ async function main(argv: readonly string[]): Promise<number> {
       await writeLayout(out, generated.layout);
       say(`${generated.files.length} files, ${generated.layout.rows.length} rows -> ${out}`);
       reportUncertainty(generated.uncertain, say);
+      reportTruncation(generated.truncated);
 
       if (values.render === true) {
         const result = await render(generated.layout, out, values, say);
@@ -179,6 +180,7 @@ async function main(argv: readonly string[]): Promise<number> {
 
       await writeLayout(out, generated.layout);
       say(`${generated.files.length} files, ${generated.layout.rows.length} rows -> ${out}`);
+      reportTruncation(generated.truncated);
 
       if (values.render === true) {
         const result = await render(generated.layout, out, values, say);
@@ -320,6 +322,21 @@ function reportUncertainty(uncertain: readonly { relativePath: string; reason?: 
   say();
   say(`${uncertain.length} file${uncertain.length === 1 ? "'s" : "s'"} page count had to be estimated:`);
   for (const file of uncertain) say(`  ${file.relativePath}: ${file.reason ?? 'reason unknown'}`);
+}
+
+/**
+ * What the page cap left out.
+ *
+ * Printed whether or not `--quiet` is set, and to stderr: a layout missing most
+ * of a report is not a detail, and the reason it happened is a flag away.
+ */
+function reportTruncation(truncated: readonly { relativePath: string; included: number; pages: number }[]): void {
+  if (truncated.length === 0) return;
+
+  process.stderr.write(`Took fewer pages than ${truncated.length === 1 ? 'one file' : 'these files'} holds; raise it with --max-pages:\n`);
+  for (const file of truncated) {
+    process.stderr.write(`  ${file.relativePath}: ${file.included} of ${file.pages} pages\n`);
+  }
 }
 
 function requirePositional(positionals: readonly string[], index: number, what: string): string {

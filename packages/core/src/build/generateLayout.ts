@@ -32,6 +32,15 @@ export interface GeneratedLayout {
   readonly files: readonly DiscoveredFile[];
   /** Files whose page count had to be guessed, worth telling the user about. */
   readonly uncertain: readonly DiscoveredFile[];
+  /**
+   * Files the page cap cut short.
+   *
+   * A layout that is missing three quarters of a report looks exactly like a
+   * layout that read the file wrongly, and for a long time nothing told the
+   * difference: the cap applied silently. Whoever generated this has to be able
+   * to say "4 of 7 pages", so the cap is a decision rather than a surprise.
+   */
+  readonly truncated: readonly DiscoveredFile[];
   readonly totalImages: number;
 }
 
@@ -54,7 +63,17 @@ export interface GenerateFromFolderOptions {
   readonly pageCounter?: PageCounter | undefined;
 }
 
-const DEFAULT_PAGES_MAX = 4;
+/**
+ * Most pages taken from one file when nobody says otherwise.
+ *
+ * It was 4, from when a page count was often a guess — an HTML plot answered
+ * "one page" until a browser had laid it out, so a low cap cost nothing and
+ * protected against a folder of long PDFs. Now that the counts are real, 4
+ * quietly threw away most of a seven-page report. 25 is enough for anything
+ * anyone puts in a report, and the render still asks before it starts on a
+ * layout of more than `confirmAbovePageCount` images.
+ */
+const DEFAULT_PAGES_MAX = 25;
 
 /**
  * How a caller counts a file's pages.
@@ -136,6 +155,7 @@ export async function generateFromFolder(options: GenerateFromFolderOptions): Pr
     },
     files,
     uncertain: files.filter((file) => file.confidence === 'estimated'),
+    truncated: files.filter((file) => file.included < file.pages),
     totalImages: rows.length * (options.compareToCommit === undefined ? 1 : 3),
   };
 }
@@ -217,6 +237,7 @@ export async function generateComparison(options: GenerateComparisonOptions): Pr
     },
     files,
     uncertain: files.filter((file) => file.confidence === 'estimated'),
+    truncated: files.filter((file) => file.included < file.pages),
     totalImages: rows.length * 3,
   };
 }
@@ -309,6 +330,7 @@ async function filesSideBySide(
     },
     files,
     uncertain: files.filter((file) => file.confidence === 'estimated'),
+    truncated: files.filter((file) => file.included < file.pages),
     totalImages: countImages(rows),
   };
 }
@@ -371,6 +393,7 @@ async function foldersSideBySide(
     },
     files,
     uncertain: files.filter((file) => file.confidence === 'estimated'),
+    truncated: files.filter((file) => file.included < file.pages),
     totalImages: countImages(rows),
   };
 }
@@ -532,6 +555,7 @@ export async function generateFolderComparison(options: GenerateFolderComparison
     },
     files,
     uncertain: files.filter((file) => file.confidence === 'estimated'),
+    truncated: files.filter((file) => file.included < file.pages),
     totalImages: rows.length * 3,
   };
 }

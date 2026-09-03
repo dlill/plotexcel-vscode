@@ -202,6 +202,12 @@
         "category": "plotExcel"
       },
       {
+        "command": "plotexcel.cleanProject",
+        "title": "Clean Up the Project Folder...",
+        "category": "plotExcel",
+        "icon": "$(trash)"
+      },
+      {
         "command": "plotexcel.checkSetup",
         "title": "Check My Setup",
         "category": "plotExcel",
@@ -503,6 +509,10 @@
           "when": "true"
         },
         {
+          "command": "plotexcel.cleanProject",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
           "command": "plotexcel.checkSetup",
           "when": "true"
         },
@@ -620,9 +630,9 @@
         },
         "plotexcel.nPagesMax": {
           "type": "number",
-          "default": 4,
+          "default": 25,
           "minimum": 1,
-          "description": "Maximum number of pages taken from any one file when generating a layout from a folder."
+          "description": "Maximum number of pages taken from any one file when generating a layout or adding to one. plotExcel says which files it cut short, and offers to take every page."
         },
         "plotexcel.confirmAbovePageCount": {
           "type": "number",

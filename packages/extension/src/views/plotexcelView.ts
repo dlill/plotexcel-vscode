@@ -4,6 +4,7 @@ import { parseLayout } from '../../../core/src/layout/layoutFile.ts';
 import { cacheStats, formatBytes } from '../../../core/src/pipeline/cache.ts';
 import { findLayouts } from '../layouts.ts';
 import { machine, settings } from '../machine.ts';
+import { filesUnder, folderFor, PLOTEXCEL_DIR, projectPaths, totalSize } from '../storage.ts';
 
 /**
  * A panel in the Explorer, for the people who will never find a command.
@@ -19,7 +20,8 @@ type Node =
   | { readonly kind: 'layout'; readonly uri: vscode.Uri; readonly rows: number; readonly columns: number }
   | { readonly kind: 'empty'; readonly label: string; readonly command?: vscode.Command }
   | { readonly kind: 'capability'; readonly label: string; readonly detail: string; readonly ready: boolean }
-  | { readonly kind: 'cache'; readonly label: string; readonly detail: string; readonly full: boolean };
+  | { readonly kind: 'cache'; readonly label: string; readonly detail: string; readonly full: boolean }
+  | { readonly kind: 'project'; readonly label: string; readonly detail: string };
 
 export class PlotExcelView implements vscode.TreeDataProvider<Node> {
   private readonly changed = new vscode.EventEmitter<Node | undefined>();
@@ -72,6 +74,17 @@ export class PlotExcelView implements vscode.TreeDataProvider<Node> {
         item.tooltip = node.full
           ? 'The cache is near its limit and the oldest entries are being dropped. Click to empty it.'
           : 'Click to empty the cache';
+        return item;
+      }
+
+      case 'project': {
+        const item = new vscode.TreeItem(node.label, vscode.TreeItemCollapsibleState.None);
+        item.description = node.detail;
+        item.iconPath = new vscode.ThemeIcon('folder-opened');
+        item.command = { command: 'plotexcel.cleanProject', title: 'Clean up the project folder' };
+        item.tooltip =
+          'Click to delete what plotExcel has written here. Excel keeps a lock on a workbook while it is ' +
+          'open, which is why Explorer can refuse to delete this folder and blame permissions.';
         return item;
       }
 
@@ -146,6 +159,30 @@ export class PlotExcelView implements vscode.TreeDataProvider<Node> {
         label: `Cache: ${formatBytes(cache.bytes)} of ${formatBytes(limitBytes)}`,
         detail: `${cache.files} file${cache.files === 1 ? '' : 's'}`,
         full: cache.bytes >= limitBytes * 0.8,
+      },
+      ...(await this.projectFolder()),
+    ];
+  }
+
+  /**
+   * What plotExcel has written into the workspace, and one click to remove it.
+   *
+   * Shown only when there is something there — a row saying "0 B" is a row
+   * nobody needs. It is the workbooks that are worth reporting: they are the
+   * large files, and they are the ones Excel locks.
+   */
+  private async projectFolder(): Promise<Node[]> {
+    const folder = folderFor();
+    if (folder === undefined) return [];
+
+    const workbooks = await filesUnder(projectPaths(folder).out);
+    if (workbooks.length === 0) return [];
+
+    return [
+      {
+        kind: 'project',
+        label: `${PLOTEXCEL_DIR}: ${formatBytes(await totalSize(workbooks))}`,
+        detail: `${workbooks.length} workbook${workbooks.length === 1 ? '' : 's'}`,
       },
     ];
   }

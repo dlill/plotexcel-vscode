@@ -7,6 +7,7 @@ import { LAYOUT_FILE_SUFFIX } from '../../../core/src/layout/layoutFile.ts';
 import { plotExtensionOf } from '../../../core/src/spec/classify.ts';
 import { pageCounter, settings } from '../machine.ts';
 import { log } from '../output.ts';
+import { offerAllPages } from '../pageCap.ts';
 import { chooseFolder, ensureProjectFolder, layoutUriFor } from '../storage.ts';
 
 /**
@@ -40,23 +41,26 @@ export async function generateLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[
   // fall back to what their own structure says, which is one page for the
   // formats that cannot answer. A layout is editable, so a short one is a
   // nuisance rather than a loss.
-  const generated = await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'plotExcel: reading plots', cancellable: true },
-    async (progress, token) =>
-      generateFromFolder({
-        folder: scanned.fsPath,
-        layoutDir,
-        resolution: configuration.defaultResolution,
-        nPagesMax: configuration.nPagesMax,
-        ...(isFolder ? {} : { include: [basename(target)] }),
-        pageCounter: async (absolutePath) => {
-          if (token.isCancellationRequested) return countPages(absolutePath);
+  const build = (cap: number) =>
+    vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'plotExcel: reading plots', cancellable: true },
+      async (progress, token) =>
+        generateFromFolder({
+          folder: scanned.fsPath,
+          layoutDir,
+          resolution: configuration.defaultResolution,
+          nPagesMax: cap,
+          ...(isFolder ? {} : { include: [basename(target)] }),
+          pageCounter: async (absolutePath) => {
+            if (token.isCancellationRequested) return countPages(absolutePath);
 
-          progress.report({ message: absolutePath.split(/[\\/]/).pop() ?? absolutePath });
-          return counter(absolutePath);
-        },
-      }),
-  );
+            progress.report({ message: absolutePath.split(/[\\/]/).pop() ?? absolutePath });
+            return counter(absolutePath);
+          },
+        }),
+    );
+
+  let generated = await build(configuration.nPagesMax);
 
   if (generated.layout.rows.length === 0) {
     void vscode.window.showWarningMessage(
@@ -70,6 +74,7 @@ export async function generateLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[
 
   const document = await vscode.window.showTextDocument(destination);
   await warnAboutEstimates(generated);
+  generated = await takeAllPagesIfAsked(generated, destination, build);
 
   const render = 'Render it';
   const choice = await vscode.window.showInformationMessage(
@@ -137,23 +142,26 @@ export async function layoutSideBySideCommand(uri?: vscode.Uri, uris?: vscode.Ur
   // Cancellable for the same reason as above: counting a Word or HTML plot
   // means starting a converter, and cancelling has to fall back to what each
   // file says about itself rather than abandon the layout.
-  const generated = await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: 'plotExcel: reading plots', cancellable: true },
-    async (progress, token) =>
-      generateSideBySide({
-        kind: comparingFolders ? 'folders' : 'files',
-        sources: targets.map((target) => target.fsPath),
-        layoutDir,
-        resolution: configuration.defaultResolution,
-        nPagesMax: configuration.nPagesMax,
-        pageCounter: async (absolutePath) => {
-          if (token.isCancellationRequested) return countPages(absolutePath);
+  const build = (cap: number) =>
+    vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Notification, title: 'plotExcel: reading plots', cancellable: true },
+      async (progress, token) =>
+        generateSideBySide({
+          kind: comparingFolders ? 'folders' : 'files',
+          sources: targets.map((target) => target.fsPath),
+          layoutDir,
+          resolution: configuration.defaultResolution,
+          nPagesMax: cap,
+          pageCounter: async (absolutePath) => {
+            if (token.isCancellationRequested) return countPages(absolutePath);
 
-          progress.report({ message: absolutePath.split(/[\\/]/).pop() ?? absolutePath });
-          return counter(absolutePath);
-        },
-      }),
-  );
+            progress.report({ message: absolutePath.split(/[\\/]/).pop() ?? absolutePath });
+            return counter(absolutePath);
+          },
+        }),
+    );
+
+  let generated = await build(configuration.nPagesMax);
 
   if (generated.layout.rows.length === 0) {
     void vscode.window.showWarningMessage(
@@ -170,6 +178,7 @@ export async function layoutSideBySideCommand(uri?: vscode.Uri, uris?: vscode.Ur
 
   const document = await vscode.window.showTextDocument(destination);
   await warnAboutEstimates(generated);
+  generated = await takeAllPagesIfAsked(generated, destination, build);
 
   const render = 'Render it';
   const choice = await vscode.window.showInformationMessage(
@@ -179,6 +188,31 @@ export async function layoutSideBySideCommand(uri?: vscode.Uri, uris?: vscode.Ur
   );
 
   if (choice === render) await vscode.commands.executeCommand('plotexcel.render', document.document.uri);
+}
+
+/**
+ * Say what the page cap left out, and do it again without one if asked.
+ *
+ * Generating again is cheap where it matters: a conversion is cached under a
+ * path that does not depend on the page or the resolution, so the second pass
+ * re-reads the PDF the first pass made rather than starting a browser again.
+ * The layout is already on disk and open, so the answer is written over it and
+ * the editor reloads.
+ */
+async function takeAllPagesIfAsked(
+  generated: GeneratedLayout,
+  destination: vscode.Uri,
+  // `withProgress` answers a Thenable, not a Promise; awaiting one is the same.
+  build: (cap: number) => Thenable<GeneratedLayout>,
+): Promise<GeneratedLayout> {
+  if (!(await offerAllPages(generated.truncated, true))) return generated;
+
+  const all = await build(Number.MAX_SAFE_INTEGER);
+  await vscode.workspace.fs.writeFile(destination, Buffer.from(formatLayout(all.layout), 'utf8'));
+
+  log().info(`Regenerated ${vscode.workspace.asRelativePath(destination)} with every page: ${all.layout.rows.length} rows.`);
+
+  return all;
 }
 
 async function warnAboutEstimates(generated: GeneratedLayout): Promise<void> {

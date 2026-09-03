@@ -87,7 +87,7 @@ Every adapter. Each one optional, each one detected, none required.
 
 ## packages/extension — 3,000 lines, 42 tests
 
-27 commands, 59 menu entries, 4 keybindings, a tree view, a walkthrough and
+28 commands, 60 menu entries, 4 keybindings, a tree view, a walkthrough and
 seven editor features. **Never run in a real extension host** — but activated
 in every test run against `test/vscode.cjs`, a recording stub, and checked
 against its own manifest.
@@ -97,7 +97,7 @@ against its own manifest.
 | Entry | `extension.ts` — registers everything; the list of what exists |
 | Commands | `commands/{render,generate,compare,preview,edit,maintenance,sample}.ts` |
 | Editor features | `language/{diagnostics,completion,hover,codelens,codeActions,format,drop,cells}.ts` |
-| Plumbing | `storage.ts` (the `.plotexcel/` folder), `machine.ts` (settings + detection cache), `layouts.ts`, `selection.ts` (diff selection + status bar), `output.ts`, `watch.ts` |
+| Plumbing | `storage.ts` (the `.plotexcel/` folder), `machine.ts` (settings + detection cache), `layouts.ts`, `selection.ts` (diff selection + status bar), `output.ts`, `pageCap.ts` (what `nPagesMax` left out), `watch.ts` |
 | View | `views/plotexcelView.ts` |
 
 `storage.ts` is the rule about where things go: everything project-scoped under

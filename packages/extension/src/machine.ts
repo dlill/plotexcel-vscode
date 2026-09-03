@@ -37,7 +37,7 @@ export function settings() {
   return {
     layoutLocation: configuration.get<'projectFolder' | 'besideSource' | 'ask'>('layoutLocation', 'projectFolder'),
     defaultResolution: configuration.get<number>('defaultResolution', 150),
-    nPagesMax: configuration.get<number>('nPagesMax', 4),
+    nPagesMax: configuration.get<number>('nPagesMax', 25),
     confirmAbovePageCount: configuration.get<number>('confirmAbovePageCount', 120),
     cacheSizeLimitMB: configuration.get<number>('cacheSizeLimitMB', 1024),
     cacheWarnAtPercent: configuration.get<number>('cacheWarnAtPercent', 80),

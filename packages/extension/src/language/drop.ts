@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import { countPages } from '../../../core/src/documents/pageCount.ts';
 import { plotExtensionOf } from '../../../core/src/spec/classify.ts';
 import { settings } from '../machine.ts';
+import { offerAllPages, type CappedFile } from '../pageCap.ts';
 import { headerLine } from './cells.ts';
 
 /**
@@ -28,16 +29,22 @@ export function registerDrop(context: vscode.ExtensionContext): void {
       const inHeader = position.line === headerLine(document);
 
       const rows: string[] = [];
+      const capped: CappedFile[] = [];
 
       for (const uri of uris) {
         const relative = relativePath(layoutDir, uri);
-        const pages = pageCountOf(uri, capacity);
+        const { pages, total } = pageCountOf(uri, capacity);
+        if (pages.length < total) capped.push({ relativePath: relative, included: pages.length, pages: total });
 
         for (const page of pages) {
           const spec = `${relative}::page ${page}::resolution ${resolution}`;
           rows.push(intoEmptyLine ? `${describe(relative, page)}::vcenter\t${spec}` : spec);
         }
       }
+
+      // Not awaited: the drop has to produce its edit now, and the notice is
+      // about what was written rather than about what to write.
+      void offerAllPages(capped, false);
 
       if (rows.length === 0) return undefined;
 
@@ -67,12 +74,20 @@ async function filesFrom(dataTransfer: vscode.DataTransfer): Promise<vscode.Uri[
     .filter((uri) => plotExtensionOf(uri.path) !== undefined);
 }
 
-function pageCountOf(uri: vscode.Uri, capacity: number): number[] {
+/**
+ * The structural count only — a drop has to answer while the mouse is still
+ * moving, and converting an HTML file to count it can take seconds.
+ */
+function pageCountOf(uri: vscode.Uri, capacity: number): { pages: number[]; total: number } {
   try {
     const count = countPages(uri.fsPath);
-    return Array.from({ length: Math.min(count.pages, capacity) }, (_, index) => index + 1);
+
+    return {
+      pages: Array.from({ length: Math.min(count.pages, capacity) }, (_, index) => index + 1),
+      total: count.pages,
+    };
   } catch {
-    return [1];
+    return { pages: [1], total: 1 };
   }
 }
 

@@ -18,7 +18,7 @@ import {
   selectForDiffCommand,
 } from './commands/compare.ts';
 import { generateLayoutCommand, layoutSideBySideCommand } from './commands/generate.ts';
-import { checkSetupCommand, clearCacheCommand } from './commands/maintenance.ts';
+import { checkSetupCommand, cleanProjectCommand, clearCacheCommand } from './commands/maintenance.ts';
 import { cropAssistantCommand, previewCellCommand, quickLookCommand } from './commands/preview.ts';
 import { renderCommand } from './commands/render.ts';
 import { openSampleCommand, openWalkthroughCommand } from './commands/sample.ts';
@@ -94,6 +94,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Housekeeping
   register('plotexcel.clearCache', async () => {
     await clearCacheCommand();
+    view.refresh();
+  });
+  register('plotexcel.cleanProject', async () => {
+    await cleanProjectCommand();
     view.refresh();
   });
   register('plotexcel.checkSetup', async () => {

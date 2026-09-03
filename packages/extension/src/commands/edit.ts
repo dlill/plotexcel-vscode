@@ -11,6 +11,7 @@ import { columnNames } from '../language/cells.ts';
 import { resolveLayoutUri } from '../layouts.ts';
 import { pageCounter, settings } from '../machine.ts';
 import { log } from '../output.ts';
+import { offerAllPages, type CappedFile } from '../pageCap.ts';
 import { plotCellUnderCursor } from './preview.ts';
 
 /**
@@ -40,10 +41,14 @@ export async function insertPlotCommand(): Promise<void> {
   const layoutDir = vscode.Uri.joinPath(editor.document.uri, '..');
   const configuration = settings();
   const lines: string[] = [];
+  const capped: CappedFile[] = [];
 
   for (const uri of picked) {
     const relative = relativePath(layoutDir, uri);
-    for (const page of await pagesOf(uri, configuration.nPagesMax, layoutDir.fsPath)) {
+    const { pages, total } = await pagesOf(uri, configuration.nPagesMax, layoutDir.fsPath);
+    noteIfCapped(capped, relative, pages.length, total);
+
+    for (const page of pages) {
       lines.push(
         `${relative.split('/').join(' / ')}, page ${page}::vcenter\t` +
           `${relative}::page ${page}::resolution ${configuration.defaultResolution}`,
@@ -59,6 +64,8 @@ export async function insertPlotCommand(): Promise<void> {
     if (onBlankLine) builder.replace(editor.document.lineAt(at.line).range, text);
     else builder.insert(new vscode.Position(at.line + 1, 0), `${text}\n`);
   });
+
+  await offerAllPages(capped, false);
 }
 
 /** From the Explorer: append a file or folder to a layout that already exists. */
@@ -81,10 +88,14 @@ export async function addToLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[]):
   const configuration = settings();
 
   const rows = layout.rows.map((row) => [...row]);
+  const capped: CappedFile[] = [];
 
   for (const target of targets) {
     const relative = relativePath(layoutDir, target);
-    for (const page of await pagesOf(target, configuration.nPagesMax, layoutDir.fsPath)) {
+    const { pages, total } = await pagesOf(target, configuration.nPagesMax, layoutDir.fsPath);
+    noteIfCapped(capped, relative, pages.length, total);
+
+    for (const page of pages) {
       const row = new Array(Math.max(1, layout.columns.length)).fill('');
       row[0] = `${relative.split('/').join(' / ')}, page ${page}::vcenter`;
       if (row.length > 1) row[1] = `${relative}::page ${page}::resolution ${configuration.defaultResolution}`;
@@ -95,6 +106,8 @@ export async function addToLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[]):
   await replaceLayout(document, { ...layout, rows });
   await vscode.window.showTextDocument(document);
   log().info(`Added ${targets.length} file(s) to ${vscode.workspace.asRelativePath(layoutUri)}.`);
+
+  await offerAllPages(capped, false);
 }
 
 /**
@@ -137,12 +150,17 @@ export async function addColumnFromFilesCommand(uri?: vscode.Uri, uris?: vscode.
     columns,
   );
 
+  const capped: CappedFile[] = [];
+
   for (const [index, target] of targets.entries()) {
     const relative = relativePath(layoutDir, target);
     const column = columns.length;
     columns.push(labels[index]!);
 
-    for (const [offset, page] of (await pagesOf(target, configuration.nPagesMax, layoutDir.fsPath)).entries()) {
+    const { pages, total } = await pagesOf(target, configuration.nPagesMax, layoutDir.fsPath);
+    noteIfCapped(capped, relative, pages.length, total);
+
+    for (const [offset, page] of pages.entries()) {
       const row = rows[offset] ?? [];
       rows[offset] = row;
 
@@ -165,6 +183,8 @@ export async function addColumnFromFilesCommand(uri?: vscode.Uri, uris?: vscode.
   log().info(
     `Added ${targets.length} column(s) to ${vscode.workspace.asRelativePath(layoutUri)}: ${labels.join(', ')}.`,
   );
+
+  await offerAllPages(capped, false);
 }
 
 /** Copy a ready-made cell to the clipboard, for pasting into any layout. */
@@ -450,15 +470,32 @@ async function pickPlots(placeHolder: string): Promise<vscode.Uri[]> {
  * Converting to count, so an HTML plot inserted here gets all of its pages.
  * The conversion is cached under a path the render will look in, so it is
  * borrowed from the render rather than added to it.
+ *
+ * `total` is what the file really holds, which is not always what comes back:
+ * `nPagesMax` caps the pages taken, and a cap nobody is told about is how a
+ * seven-page report becomes four rows that look like a bug.
  */
-async function pagesOf(uri: vscode.Uri, capacity: number, layoutDir: string): Promise<number[]> {
+async function pagesOf(
+  uri: vscode.Uri,
+  capacity: number,
+  layoutDir: string,
+): Promise<{ pages: number[]; total: number }> {
   try {
     const counter = await pageCounter(layoutDir);
     const count = await counter(uri.fsPath);
-    return Array.from({ length: Math.min(count.pages, capacity) }, (_, index) => index + 1);
+
+    return {
+      pages: Array.from({ length: Math.min(count.pages, capacity) }, (_, index) => index + 1),
+      total: count.pages,
+    };
   } catch {
-    return [1];
+    return { pages: [1], total: 1 };
   }
+}
+
+/** One entry for every file the cap cut short, for `offerAllPages`. */
+function noteIfCapped(capped: CappedFile[], relativePath: string, took: number, total: number): void {
+  if (took < total) capped.push({ relativePath, included: took, pages: total });
 }
 
 function dataRowIndexOf(document: vscode.TextDocument, line: number): number | undefined {

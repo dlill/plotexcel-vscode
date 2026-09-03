@@ -6,9 +6,11 @@ import { LAYOUT_FILE_SUFFIX } from '../../core/src/layout/layoutFile.ts';
  * Where the extension puts what it makes.
  *
  * Everything project-scoped goes under `.plotexcel/` at the workspace root:
- * generated layouts, rendered workbooks, the last run's log. Pipeline
- * intermediates do not live here at all — they belong in the system temp
- * folder, because they are reproducible and there can be thousands of them.
+ * generated layouts and rendered workbooks. Pipeline intermediates do not live
+ * here at all — they belong in the system temp folder, because they are
+ * reproducible and there can be thousands of them. The log is an output
+ * channel, not a file; there was a `logs/` folder here for a while, created on
+ * every setup and never written to once.
  */
 
 export const PLOTEXCEL_DIR = '.plotexcel';
@@ -21,7 +23,6 @@ export interface ProjectPaths {
   readonly base: vscode.Uri;
   readonly layouts: vscode.Uri;
   readonly out: vscode.Uri;
-  readonly logs: vscode.Uri;
 }
 
 export function projectPaths(folder: vscode.WorkspaceFolder): ProjectPaths {
@@ -31,7 +32,6 @@ export function projectPaths(folder: vscode.WorkspaceFolder): ProjectPaths {
     base,
     layouts: vscode.Uri.joinPath(base, 'layouts'),
     out: vscode.Uri.joinPath(base, 'out'),
-    logs: vscode.Uri.joinPath(base, 'logs'),
   };
 }
 
@@ -45,7 +45,7 @@ export function projectPaths(folder: vscode.WorkspaceFolder): ProjectPaths {
 export async function ensureProjectFolder(folder: vscode.WorkspaceFolder): Promise<ProjectPaths> {
   const paths = projectPaths(folder);
 
-  for (const directory of [paths.base, paths.layouts, paths.out, paths.logs]) {
+  for (const directory of [paths.base, paths.layouts, paths.out]) {
     await vscode.workspace.fs.createDirectory(directory);
   }
 
@@ -109,6 +109,50 @@ export async function layoutUriFor(paths: ProjectPaths, name: string): Promise<v
       return candidate;
     }
   }
+}
+
+/**
+ * Every file under a folder, or none when it is not there.
+ *
+ * Shared by the clean-up command and the tree view so that "what has plotExcel
+ * written here" has one answer. Deepest first, which is the order a delete
+ * needs: a directory empties before it goes.
+ */
+export async function filesUnder(folder: vscode.Uri, recursive = true): Promise<vscode.Uri[]> {
+  const entries = await vscode.workspace.fs.readDirectory(folder).then(
+    (found) => found,
+    () => [] as [string, vscode.FileType][],
+  );
+
+  const found: vscode.Uri[] = [];
+
+  for (const [name, type] of entries) {
+    const child = vscode.Uri.joinPath(folder, name);
+
+    if (type === vscode.FileType.Directory) {
+      if (recursive) found.push(...(await filesUnder(child)));
+      continue;
+    }
+
+    found.push(child);
+  }
+
+  return found;
+}
+
+/** Bytes of a list of files, ignoring any that vanish while being looked at. */
+export async function totalSize(files: readonly vscode.Uri[]): Promise<number> {
+  let total = 0;
+
+  for (const file of files) {
+    const stat = await vscode.workspace.fs.stat(file).then(
+      (found) => found,
+      () => undefined,
+    );
+    total += stat?.size ?? 0;
+  }
+
+  return total;
 }
 
 /** Where a layout's workbook goes when the layout does not say. */

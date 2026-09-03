@@ -71,6 +71,24 @@ describe('generateFromFolder', () => {
     assert.ok(generated.files.some((file) => file.pages > file.included), 'the cap is recorded, not hidden');
   });
 
+  it('names the files the cap cut short, and what they really hold', async () => {
+    const root = tree();
+    const generated = await generateFromFolder({ folder: root, layoutDir: root, nPagesMax: 1 });
+
+    const cut = generated.truncated.map((file) => `${file.relativePath}: ${file.included} of ${file.pages}`);
+
+    // multi.pdf has three pages and notes.docx reports three; single.pdf has
+    // one and was not cut short, so it must not be listed.
+    assert.deepEqual(cut.sort(), ['figs/multi.pdf: 1 of 3', 'figs/supplementary/notes.docx: 1 of 3']);
+  });
+
+  it('reports nothing cut short when the cap is above every count', async () => {
+    const root = tree();
+    const generated = await generateFromFolder({ folder: root, layoutDir: root, nPagesMax: 10 });
+
+    assert.deepEqual(generated.truncated, []);
+  });
+
   it('keeps the order of an explicit selection', async () => {
     const root = tree();
     const generated = await generateFromFolder({
@@ -210,6 +228,21 @@ describe('generateComparison', () => {
     assert.match(generated.layout.rows[0]![2]!, /::commit HEAD~2$/);
   });
 
+  it('takes every page of both sides, so nothing is ever cut short', async () => {
+    const root = tree();
+    const generated = await generateComparison({
+      first: path.join(root, 'figs', 'multi.pdf'),
+      second: path.join(root, 'figs', 'multi.pdf'),
+      layoutDir: root,
+    });
+
+    // Two files chosen by hand, not a folder walked blindly: the page cap has
+    // nothing to protect against here, and a comparison missing its last page
+    // is worse than a long one.
+    assert.deepEqual(generated.truncated, []);
+    assert.equal(generated.layout.rows.length, 3);
+  });
+
   it('refuses to compare one file against nothing', async () => {
     await assert.rejects(
       generateComparison({ first: path.join(docs, '01-Iris.pdf'), layoutDir: docs }),
@@ -283,7 +316,7 @@ describe('generateSideBySide', () => {
     assert.ok(!generated.layout.rows.flat().some((cell) => cell.startsWith('diff(')));
   });
 
-  it('caps the pages taken from any one file', async () => {
+  it('caps the pages taken from any one file, and says which it cut short', async () => {
     const root = tree();
     const generated = await generateSideBySide({
       kind: 'files',
@@ -293,6 +326,10 @@ describe('generateSideBySide', () => {
     });
 
     assert.equal(generated.layout.rows.length, 2);
+    assert.deepEqual(
+      generated.truncated.map((file) => `${file.relativePath}: ${file.included} of ${file.pages}`),
+      ['figs/multi.pdf: 2 of 3'],
+    );
   });
 
   it('tells apart two files that share a name', async () => {

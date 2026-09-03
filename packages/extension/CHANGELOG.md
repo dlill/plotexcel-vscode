@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- **A layout no longer quietly stops at four pages.** `plotexcel.nPagesMax`
+  capped every file at 4, which was invisible: a seven-page HTML report came out
+  as four rows and looked like plotExcel having misread the file. The default is
+  now 25, and whenever the cap does apply, plotExcel says which files it cut
+  short — "took 4 of 7 pages from report.html" — with **Take all pages** to do it
+  again with no cap, and a button that opens the setting so it stays changed. The
+  command line prints the same, and says to raise `--max-pages`.
+- **Clean Up the Project Folder.** `.plotexcel` could not be deleted from
+  Explorer: Windows claimed it needed administrator permission. It does not —
+  a workbook opened after a render is locked by Excel for as long as it stays
+  open, and Explorer reports a locked file inside a folder as a permissions
+  problem. The new command deletes what plotExcel wrote, one file at a time, and
+  names the workbook that is still open instead of blaming permissions. The
+  panel in the Explorer shows what the folder holds and runs it in one click.
+  Workbooks and layouts are offered separately, because a generated layout is
+  usually one you have since edited.
+- **`.plotexcel/logs/` is not created any more.** It was made on every setup and
+  never written to once — the log is an output channel, not a file.
+
 - **Lay Out Side by Side.** Select several plots, or several folders, right-click
   and get a layout with one column each — page 3 of every one of them on the
   same row. For folders, the files are paired by the path they have inside each

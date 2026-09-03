@@ -446,6 +446,49 @@ folders that are one run each.
   `plotexcel.addToLayout`: nothing keybinds it, and renaming an id for a title
   change buys nothing.
 
+## What the first real-host session found
+
+Two reports, both of them the extension doing something reasonable in silence.
+
+- **`nPagesMax` was 4, and nothing said so.** A seven-page HTML plot generated
+  four rows. The count was right — `countSourcePages` converts and counts the
+  real PDF — and the cap did exactly what it was written to do. It was chosen
+  when an HTML page count was always a guess of 1, so a low cap cost nothing;
+  once the counts became real it silently discarded most of a report. The
+  default is 25, and `GeneratedLayout` now carries `truncated` beside
+  `uncertain` so that every caller can say "4 of 7". `DiscoveredFile` already
+  held both numbers; nobody was reading them.
+- **The notice offers to do it again rather than only pointing at a setting.**
+  Regenerating with no cap is affordable precisely because of the convert cache:
+  it is keyed independently of the page and the resolution, so the second pass
+  re-reads the PDF the first pass made instead of starting a browser again. The
+  button that opens the setting is there as well, because the same person will
+  generate a second layout tomorrow.
+- **The cap warning fires from the editing commands too, without the re-take
+  button.** Add to Layout Below, Add to Layout as New Column, Insert Plot and
+  drag-and-drop all cap the same way. There the layout is one being edited by
+  hand, so silently rewriting it is not on offer — the message and the setting
+  are.
+- **`.plotexcel` "needing administrator permission" is a lock, not an ACL.**
+  Nothing here sets permissions: everything under the folder is written through
+  `vscode.workspace.fs`, every converter profile and scratch directory is under
+  `os.tmpdir()`, and no child process is given a `cwd` inside the workspace.
+  What holds it is Excel — `openAfterRender` opens the workbook, Excel takes an
+  exclusive lock and writes a hidden `~$` file beside it, and Explorer deleting
+  a tree with a locked Office file in it reports the wrong reason. The fix is
+  therefore not a fix to the writing: it is Clean Up the Project Folder, which
+  deletes file by file and names what is stuck.
+- **File by file, not one recursive delete.** A recursive delete fails as a
+  whole and names nothing, and the name of the file that is stuck is the only
+  useful part of the answer. A `~$plots.xlsx` is reported as `plots.xlsx`,
+  because nobody recognises the lock file's name.
+- **Workbooks and layouts are separate answers.** Workbooks come back from one
+  render; a layout under `layouts/` was generated and then edited by hand, so
+  deleting it cannot be the default button.
+- **`logs/` is gone.** `ensureProjectFolder` created it on every setup and
+  nothing ever wrote to it — the log is a `LogOutputChannel`. The README and
+  this file both claimed otherwise.
+
 ## Still open
 
 - **The diff image.** It fades unchanged content, marks changes red and marks
