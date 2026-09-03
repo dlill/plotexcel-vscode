@@ -6,10 +6,12 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+  distinctLabels,
   findPlotFiles,
   generateComparison,
   generateFolderComparison,
   generateFromFolder,
+  generateSideBySide,
 } from '../src/build/generateLayout.ts';
 import { formatLayout, parseLayout } from '../src/layout/layoutFile.ts';
 import { cacheStats, clearCache, formatBytes, pruneCache } from '../src/pipeline/cache.ts';
@@ -240,6 +242,147 @@ describe('generateFolderComparison', () => {
     assert.ok(row, 'the extra file must still get a row');
     assert.equal(row![2], '');
     assert.match(row![3]!, /^Only in /);
+  });
+});
+
+describe('generateSideBySide', () => {
+  it('gives every file a column of its own and every page a row', async () => {
+    const root = tree();
+    const generated = await generateSideBySide({
+      kind: 'files',
+      sources: [path.join(root, 'figs', 'multi.pdf'), path.join(root, 'figs', 'single.pdf')],
+      layoutDir: root,
+    });
+
+    assert.deepEqual(generated.layout.columns, ['Page', 'multi.pdf', 'single.pdf']);
+    assert.equal(generated.layout.rows.length, 3, 'the longest file decides the height');
+    assert.match(generated.layout.rows[0]![1]!, /multi\.pdf::page 1::/);
+    assert.match(generated.layout.rows[0]![2]!, /single\.pdf::page 1::/);
+  });
+
+  it('leaves a shorter file blank rather than shifting its column up', async () => {
+    const root = tree();
+    const generated = await generateSideBySide({
+      kind: 'files',
+      sources: [path.join(root, 'figs', 'multi.pdf'), path.join(root, 'figs', 'single.pdf')],
+      layoutDir: root,
+    });
+
+    assert.match(generated.layout.rows[1]![1]!, /::page 2::/, 'the long file carries on');
+    assert.equal(generated.layout.rows[1]![2], '', 'and the short one stops');
+  });
+
+  it('carries no difference column, however many are laid out', async () => {
+    const root = tree();
+    const generated = await generateSideBySide({
+      kind: 'files',
+      sources: [path.join(root, 'figs', 'single.pdf'), path.join(root, 'figs', 'multi.pdf')],
+      layoutDir: root,
+    });
+
+    assert.ok(!generated.layout.rows.flat().some((cell) => cell.startsWith('diff(')));
+  });
+
+  it('caps the pages taken from any one file', async () => {
+    const root = tree();
+    const generated = await generateSideBySide({
+      kind: 'files',
+      sources: [path.join(root, 'figs', 'multi.pdf'), path.join(root, 'figs', 'single.pdf')],
+      layoutDir: root,
+      nPagesMax: 2,
+    });
+
+    assert.equal(generated.layout.rows.length, 2);
+  });
+
+  it('tells apart two files that share a name', async () => {
+    const root = tree();
+    mkdirSync(path.join(root, 'run-1'), { recursive: true });
+    mkdirSync(path.join(root, 'run-2'), { recursive: true });
+    copyFileSync(path.join(docs, '01-Iris.pdf'), path.join(root, 'run-1', 'plots.pdf'));
+    copyFileSync(path.join(docs, '01-Iris.pdf'), path.join(root, 'run-2', 'plots.pdf'));
+
+    const generated = await generateSideBySide({
+      kind: 'files',
+      sources: [path.join(root, 'run-1', 'plots.pdf'), path.join(root, 'run-2', 'plots.pdf')],
+      layoutDir: root,
+    });
+
+    assert.deepEqual(generated.layout.columns, ['Page', 'run-1/plots.pdf', 'run-2/plots.pdf']);
+  });
+
+  it('pairs folders by the path each file has inside them', async () => {
+    const left = tree();
+    const right = tree();
+    const generated = await generateSideBySide({
+      kind: 'folders',
+      sources: [left, right],
+      layoutDir: left,
+      nPagesMax: 1,
+    });
+
+    assert.equal(generated.layout.columns[0], 'Description');
+    assert.equal(generated.layout.rows.length, 3);
+    for (const row of generated.layout.rows) {
+      assert.ok(row[1]!.length > 0 && row[2]!.length > 0);
+    }
+  });
+
+  it('still gives a row to a file only one folder has', async () => {
+    const left = tree();
+    const right = tree();
+    copyFileSync(path.join(docs, '01-Iris.pdf'), path.join(left, 'figs', 'only-here.pdf'));
+
+    const generated = await generateSideBySide({
+      kind: 'folders',
+      sources: [left, right],
+      layoutDir: left,
+      nPagesMax: 1,
+    });
+
+    const row = generated.layout.rows.find((candidate) => candidate[0]!.includes('only-here'));
+
+    assert.ok(row, 'a plot that stopped being produced has to stay visible');
+    assert.match(row![1]!, /only-here\.pdf::page 1::/);
+    assert.equal(row![2], '');
+  });
+
+  it('round-trips through the layout format', async () => {
+    const root = tree();
+    const generated = await generateSideBySide({
+      kind: 'files',
+      sources: [path.join(root, 'figs', 'multi.pdf'), path.join(root, 'figs', 'single.pdf')],
+      layoutDir: root,
+    });
+
+    const { layout, diagnostics } = parseLayout(formatLayout(generated.layout));
+
+    assert.deepEqual(diagnostics, [], 'a repeated or empty column name would show up here');
+    assert.deepEqual(layout.columns, generated.layout.columns);
+    assert.deepEqual(layout.rows, generated.layout.rows);
+  });
+
+  it('refuses to lay out one thing beside nothing', async () => {
+    await assert.rejects(
+      generateSideBySide({ kind: 'files', sources: [path.join(docs, '01-Iris.pdf')], layoutDir: docs }),
+      /at least two/,
+    );
+  });
+});
+
+describe('distinctLabels', () => {
+  it('uses the file name until two of them are the same', () => {
+    assert.deepEqual(distinctLabels(['/w/a/one.pdf', '/w/b/two.pdf']), ['one.pdf', 'two.pdf']);
+    assert.deepEqual(distinctLabels(['/w/a/same.pdf', '/w/b/same.pdf']), ['a/same.pdf', 'b/same.pdf']);
+  });
+
+  it('grows only the name that collides', () => {
+    const labels = distinctLabels(['/w/a/same.pdf', '/w/b/same.pdf', '/w/other.pdf']);
+    assert.deepEqual(labels, ['a/same.pdf', 'b/same.pdf', 'other.pdf']);
+  });
+
+  it('avoids the names a layout is already using', () => {
+    assert.deepEqual(distinctLabels(['/w/plot.pdf'], ['Description', 'plot.pdf']), ['plot.pdf (2)']);
   });
 });
 

@@ -98,6 +98,27 @@ describe('menus and keybindings', () => {
     assert.ok((declared.contributes.menus['plotexcel.explorer'] ?? []).length > 1, 'and the submenu holds the commands');
   });
 
+  /**
+   * Every way of building a layout is hidden from the palette — none of them
+   * can do anything without an Explorer selection — so the submenu is the only
+   * way to reach them. An entry dropped from it while the command stays
+   * registered is a feature nobody can run and nothing else notices.
+   */
+  it('keeps every way of building a layout in the Explorer submenu', () => {
+    const inLayoutGroup = (declared.contributes.menus['plotexcel.explorer'] ?? [])
+      .filter((entry) => (entry.group ?? '').startsWith('2_layout'))
+      .map((entry) => entry.command);
+
+    for (const id of [
+      'plotexcel.generateLayout',
+      'plotexcel.layoutSideBySide',
+      'plotexcel.addToLayout',
+      'plotexcel.addColumnFromFiles',
+    ]) {
+      assert.ok(inLayoutGroup.includes(id), `${id} is not in the menu group, and the palette hides it`);
+    }
+  });
+
   it('declares every submenu it points at', () => {
     const declaredIds = new Set((declared.contributes.submenus ?? []).map((entry) => entry.id));
 

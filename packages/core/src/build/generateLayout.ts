@@ -221,6 +221,216 @@ export async function generateComparison(options: GenerateComparisonOptions): Pr
   };
 }
 
+export interface GenerateSideBySideOptions {
+  /** Two or more paths, all files or all folders — `kind` says which. */
+  readonly sources: readonly string[];
+  readonly kind: 'files' | 'folders';
+  readonly layoutDir: string;
+  readonly resolution?: number | undefined;
+  readonly nPagesMax?: number | undefined;
+  /** Drop paths matching this. Folders only. */
+  readonly exclude?: RegExp | undefined;
+  /** How to count pages. Without it, only formats that carry a count get one. */
+  readonly pageCounter?: PageCounter | undefined;
+}
+
+/**
+ * Several plots in columns next to each other, one column each.
+ *
+ * The table for a handful of things that are nearly the same — one run per
+ * scenario, one export per week — where what matters is seeing page 3 of each
+ * of them at once. `generateComparison` already does this for two, but only
+ * for two, and always with a difference column; this is the same shape for any
+ * number and without one, because a difference is only defined between a pair
+ * and asking for a comparison is what the Compare commands are for.
+ *
+ * Whether the sources are files or folders is told rather than discovered:
+ * `core` does not touch the filesystem to classify anything, and the caller
+ * has already stat'ed them to decide the menu entry applied.
+ */
+export async function generateSideBySide(options: GenerateSideBySideOptions): Promise<GeneratedLayout> {
+  if (options.sources.length < 2) {
+    throw new Error('Laying plots out side by side needs at least two of them.');
+  }
+
+  const sources = options.sources.map((source) => path.resolve(source));
+  const labels = distinctLabels(sources);
+  const cap = options.nPagesMax ?? DEFAULT_PAGES_MAX;
+  const resolution = options.resolution ?? 150;
+
+  return options.kind === 'folders'
+    ? foldersSideBySide(options, sources, labels, cap, resolution)
+    : filesSideBySide(options, sources, labels, cap, resolution);
+}
+
+/** One column per file, one row per page, aligned by page number. */
+async function filesSideBySide(
+  options: GenerateSideBySideOptions,
+  sources: readonly string[],
+  labels: readonly string[],
+  cap: number,
+  resolution: number,
+): Promise<GeneratedLayout> {
+  const files: DiscoveredFile[] = [];
+
+  for (const absolutePath of sources) {
+    const count = await countWith(options.pageCounter, absolutePath);
+
+    files.push({
+      relativePath: toPosix(path.relative(options.layoutDir, absolutePath)),
+      absolutePath,
+      pages: count.pages,
+      included: Math.min(count.pages, cap),
+      confidence: count.confidence,
+      reason: count.reason,
+    });
+  }
+
+  const height = Math.max(...files.map((file) => file.included));
+  const rows: string[][] = [];
+
+  for (let page = 1; page <= height; page += 1) {
+    // A file with fewer pages leaves the cell empty rather than shifting its
+    // column up: the whole point of the table is that a row is one page.
+    rows.push([
+      `${page}::vcenter`,
+      ...files.map((file) =>
+        page <= file.included ? spec(options.layoutDir, file.absolutePath, page, resolution) : '',
+      ),
+    ]);
+  }
+
+  return {
+    layout: {
+      options: { resolution, textColWidth: 4 },
+      comments: [`# ${labels.length} plots side by side, one column each — edit freely.`],
+      columns: ['Page', ...labels],
+      rows,
+    },
+    files,
+    uncertain: files.filter((file) => file.confidence === 'estimated'),
+    totalImages: countImages(rows),
+  };
+}
+
+/** One column per folder, one row per file and page, paired by relative path. */
+async function foldersSideBySide(
+  options: GenerateSideBySideOptions,
+  sources: readonly string[],
+  labels: readonly string[],
+  cap: number,
+  resolution: number,
+): Promise<GeneratedLayout> {
+  const listings: string[][] = [];
+  for (const folder of sources) listings.push(await findPlotFiles(folder, options.exclude));
+
+  const everything = [...new Set(listings.flat())].sort((a, b) => a.localeCompare(b));
+  const files: DiscoveredFile[] = [];
+  const rows: string[][] = [];
+
+  for (const relativePath of everything) {
+    const holds = listings.map((listing) => listing.includes(relativePath));
+    // Pages are counted once, from the first folder that has the file. The
+    // alternative — counting each side — puts the same file on rows of
+    // different heights when two copies disagree, which is unreadable.
+    const owner = sources[holds.indexOf(true)]!;
+    const reference = path.join(owner, relativePath);
+    const count = await countWith(options.pageCounter, reference);
+    const pages = Math.min(count.pages, cap);
+
+    files.push({
+      relativePath,
+      absolutePath: reference,
+      pages: count.pages,
+      included: pages,
+      confidence: count.confidence,
+      reason: count.reason,
+    });
+
+    for (let page = 1; page <= pages; page += 1) {
+      // A file only some of the folders have still gets a row, with the gap
+      // visible. Dropping it is how a plot that stopped being produced goes
+      // unnoticed.
+      rows.push([
+        `${relativePath.split(/[\\/]/).join(' / ')}, page ${page}::vcenter`,
+        ...sources.map((folder, index) =>
+          holds[index] === true ? spec(options.layoutDir, path.join(folder, relativePath), page, resolution) : '',
+        ),
+      ]);
+    }
+  }
+
+  return {
+    layout: {
+      options: { resolution, textColWidth: 8 },
+      comments: [
+        `# ${labels.length} folders side by side — files are paired by their path inside each folder.`,
+      ],
+      columns: ['Description', ...labels],
+      rows,
+    },
+    files,
+    uncertain: files.filter((file) => file.confidence === 'estimated'),
+    totalImages: countImages(rows),
+  };
+}
+
+/**
+ * One name per path, all of them different.
+ *
+ * Column names have to be unique — a diff cell names a column, and
+ * `parseLayout` reports a repeat as an error — but the name anyone would pick
+ * is the basename, and `run-1/plots.pdf` and `run-2/plots.pdf` share it. A
+ * colliding name grows leftwards a folder at a time until it differs, which is
+ * the shortest name that tells the columns apart.
+ *
+ * `taken` is for names already spoken for, such as the columns of the layout a
+ * new one is being added to.
+ */
+export function distinctLabels(paths: readonly string[], taken: readonly string[] = []): string[] {
+  const segments = paths.map((value) =>
+    toPosix(path.resolve(value))
+      .split('/')
+      .filter((part) => part.length > 0),
+  );
+  const depth = segments.map(() => 1);
+
+  const labelsAt = () => segments.map((parts, index) => clean(parts.slice(-depth[index]!).join('/')));
+
+  for (;;) {
+    const labels = labelsAt();
+    const counts = new Map<string, number>();
+    for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
+
+    let grew = false;
+
+    labels.forEach((label, index) => {
+      if ((counts.get(label) ?? 0) < 2) return;
+      if (depth[index]! >= segments[index]!.length) return;
+
+      depth[index] = depth[index]! + 1;
+      grew = true;
+    });
+
+    if (!grew) break;
+  }
+
+  // Growing cannot always separate them — the same path twice, or a name a
+  // column already uses. A suffix is ugly, but a duplicate column name stops
+  // the layout from parsing at all.
+  const used = new Set(taken);
+
+  return labelsAt().map((label) => {
+    const base = label.length === 0 ? 'Column' : label;
+    let candidate = base;
+
+    for (let attempt = 2; used.has(candidate); attempt += 1) candidate = `${base} (${attempt})`;
+    used.add(candidate);
+
+    return candidate;
+  });
+}
+
 export interface GenerateFolderComparisonOptions {
   readonly left: string;
   readonly right?: string | undefined;
@@ -440,4 +650,14 @@ function spec(layoutDir: string, absolutePath: string, page: number, resolution:
 
 function toPosix(value: string): string {
   return value.split(path.sep).join('/');
+}
+
+/** Plot cells that actually point at something, for the progress total. */
+function countImages(rows: readonly (readonly string[])[]): number {
+  return rows.reduce((total, row) => total + row.slice(1).filter((cell) => cell.length > 0).length, 0);
+}
+
+/** A tab or a newline in a column name is a layout file that cannot be written. */
+function clean(label: string): string {
+  return label.replace(/[\t\r\n]+/g, ' ').trim();
 }

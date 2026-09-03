@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
 
-import { generateFromFolder, type GeneratedLayout } from '../../../core/src/build/generateLayout.ts';
+import { generateFromFolder, generateSideBySide, type GeneratedLayout } from '../../../core/src/build/generateLayout.ts';
 import { countPages } from '../../../core/src/documents/pageCount.ts';
 import { formatLayout } from '../../../core/src/layout/layoutFile.ts';
 import { LAYOUT_FILE_SUFFIX } from '../../../core/src/layout/layoutFile.ts';
+import { plotExtensionOf } from '../../../core/src/spec/classify.ts';
 import { pageCounter, settings } from '../machine.ts';
 import { log } from '../output.ts';
 import { chooseFolder, ensureProjectFolder, layoutUriFor } from '../storage.ts';
@@ -79,6 +80,107 @@ export async function generateLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[
   if (choice === render) await vscode.commands.executeCommand('plotexcel.render', document.document.uri);
 }
 
+/**
+ * Several plots, or several folders, in columns beside each other.
+ *
+ * For the things that are nearly the same — one folder per run, one export per
+ * week. Generate Table Layout puts them one under another, which is the wrong
+ * shape for reading them against each other: what is wanted is page 3 of each
+ * of them on one row. Comparing *two* things already produces that table, but
+ * only two and always with a difference column, so this is the same gesture
+ * for any number of them.
+ */
+export async function layoutSideBySideCommand(uri?: vscode.Uri, uris?: vscode.Uri[]): Promise<void> {
+  const folders: vscode.Uri[] = [];
+  const files: vscode.Uri[] = [];
+
+  // Selection order decides the column order, so the list is not sorted: it is
+  // the one thing about the table only the person clicking knows.
+  for (const candidate of uris ?? (uri === undefined ? [] : [uri])) {
+    const stat = await vscode.workspace.fs.stat(candidate).then(
+      (found) => found,
+      () => undefined,
+    );
+    if (stat === undefined) continue;
+
+    if (stat.type === vscode.FileType.Directory) folders.push(candidate);
+    else if (plotExtensionOf(candidate.fsPath) !== undefined) files.push(candidate);
+  }
+
+  if (folders.length > 0 && files.length > 0) {
+    void vscode.window.showWarningMessage(
+      'plotExcel lays files out beside files, or folders beside folders — not one of each.',
+    );
+    return;
+  }
+
+  const comparingFolders = folders.length > 0;
+  const targets = comparingFolders ? folders : files;
+
+  if (targets.length < 2) {
+    void vscode.window.showWarningMessage(
+      'Select two or more plots, or two or more folders, to lay them out side by side.',
+    );
+    return;
+  }
+
+  const workspaceFolder = await chooseFolder(targets[0]);
+  if (workspaceFolder === undefined) return;
+
+  const configuration = settings();
+  const paths = await ensureProjectFolder(workspaceFolder);
+  const destination = await layoutUriFor(paths, `${stem(targets[0]!)}-and-${targets.length - 1}-more`);
+
+  const layoutDir = parentOf(destination).fsPath;
+  const counter = await pageCounter(layoutDir);
+
+  // Cancellable for the same reason as above: counting a Word or HTML plot
+  // means starting a converter, and cancelling has to fall back to what each
+  // file says about itself rather than abandon the layout.
+  const generated = await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'plotExcel: reading plots', cancellable: true },
+    async (progress, token) =>
+      generateSideBySide({
+        kind: comparingFolders ? 'folders' : 'files',
+        sources: targets.map((target) => target.fsPath),
+        layoutDir,
+        resolution: configuration.defaultResolution,
+        nPagesMax: configuration.nPagesMax,
+        pageCounter: async (absolutePath) => {
+          if (token.isCancellationRequested) return countPages(absolutePath);
+
+          progress.report({ message: absolutePath.split(/[\\/]/).pop() ?? absolutePath });
+          return counter(absolutePath);
+        },
+      }),
+  );
+
+  if (generated.layout.rows.length === 0) {
+    void vscode.window.showWarningMessage(
+      'None of those folders hold a plot. plotExcel reads PDF, PNG, Word, PowerPoint, Excel and HTML files.',
+    );
+    return;
+  }
+
+  await vscode.workspace.fs.writeFile(destination, Buffer.from(formatLayout(generated.layout), 'utf8'));
+  log().info(
+    `Laid ${targets.length} ${comparingFolders ? 'folders' : 'plots'} side by side in ` +
+      `${vscode.workspace.asRelativePath(destination)}.`,
+  );
+
+  const document = await vscode.window.showTextDocument(destination);
+  await warnAboutEstimates(generated);
+
+  const render = 'Render it';
+  const choice = await vscode.window.showInformationMessage(
+    `${generated.layout.rows.length} rows, one column per ${comparingFolders ? 'folder' : 'plot'}. ` +
+      'Edit the table, then render.',
+    render,
+  );
+
+  if (choice === render) await vscode.commands.executeCommand('plotexcel.render', document.document.uri);
+}
+
 async function warnAboutEstimates(generated: GeneratedLayout): Promise<void> {
   if (generated.uncertain.length === 0) return;
 
@@ -115,6 +217,12 @@ function parentOf(uri: vscode.Uri): vscode.Uri {
 function basename(uri: vscode.Uri): string {
   const parts = uri.path.split('/').filter((part) => part.length > 0);
   return parts[parts.length - 1] ?? 'plots';
+}
+
+/** A name for the layout. Only a plot's extension is dropped — `v1.2` is a folder. */
+function stem(uri: vscode.Uri): string {
+  const name = basename(uri);
+  return plotExtensionOf(name) === undefined ? name : name.replace(/\.[^.]+$/, '');
 }
 
 export { LAYOUT_FILE_SUFFIX };

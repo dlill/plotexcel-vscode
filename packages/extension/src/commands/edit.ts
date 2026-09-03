@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import * as vscode from 'vscode';
 
+import { distinctLabels } from '../../../core/src/build/generateLayout.ts';
 import { resolveOutputPath, workbookNamePattern } from '../../../core/src/build/renderLayout.ts';
 import { removeOption, renumberCaption, setOption } from '../../../core/src/layout/editCell.ts';
 import { formatLayout, isLayoutFile, parseLayout, type LayoutFile } from '../../../core/src/layout/layoutFile.ts';
@@ -94,6 +95,76 @@ export async function addToLayoutCommand(uri?: vscode.Uri, uris?: vscode.Uri[]):
   await replaceLayout(document, { ...layout, rows });
   await vscode.window.showTextDocument(document);
   log().info(`Added ${targets.length} file(s) to ${vscode.workspace.asRelativePath(layoutUri)}.`);
+}
+
+/**
+ * From the Explorer: give a layout that already exists a column per file.
+ *
+ * The other half of Add to Layout Below. Below is right for another plot in the
+ * same series; a column is right for the same plot from somewhere else — the
+ * next run, the other branch — where the point is to see it beside what is
+ * already there.
+ *
+ * The pages fill downwards in row order: page 1 in the first data row, page 2
+ * in the second. Matching on the page number written in the row instead would
+ * be cleverer and would break the moment a row was cropped, renumbered or
+ * sorted, which is most of what these commands are for.
+ */
+export async function addColumnFromFilesCommand(uri?: vscode.Uri, uris?: vscode.Uri[]): Promise<void> {
+  const targets = (uris ?? (uri === undefined ? [] : [uri])).filter(
+    (candidate) => plotExtensionOf(candidate.fsPath) !== undefined,
+  );
+
+  if (targets.length === 0) {
+    void vscode.window.showWarningMessage('Select one or more plot files to add as a column.');
+    return;
+  }
+
+  const layoutUri = await resolveLayoutUri();
+  if (layoutUri === undefined) return;
+
+  const document = await vscode.workspace.openTextDocument(layoutUri);
+  const { layout } = parseLayout(document.getText());
+  const layoutDir = vscode.Uri.joinPath(layoutUri, '..');
+  const configuration = settings();
+
+  const columns = [...layout.columns];
+  const rows = layout.rows.map((row) => [...row]);
+  // Against the layout's own columns as well as each other: a repeated column
+  // name is an error the layout cannot be read past.
+  const labels = distinctLabels(
+    targets.map((target) => target.fsPath),
+    columns,
+  );
+
+  for (const [index, target] of targets.entries()) {
+    const relative = relativePath(layoutDir, target);
+    const column = columns.length;
+    columns.push(labels[index]!);
+
+    for (const [offset, page] of (await pagesOf(target, configuration.nPagesMax, layoutDir.fsPath)).entries()) {
+      const row = rows[offset] ?? [];
+      rows[offset] = row;
+
+      row[column] = `${relative}::page ${page}::resolution ${configuration.defaultResolution}`;
+      // A row this file just added has nothing in the description column, and a
+      // nameless row is one nobody can find again in the workbook.
+      if ((row[0] ?? '').length === 0) row[0] = `${relative.split('/').join(' / ')}, page ${page}::vcenter`;
+    }
+  }
+
+  await replaceLayout(document, {
+    ...layout,
+    columns,
+    // Every row squared off before the write: a row with more cells than the
+    // header has columns is a diagnostic on every line of the file.
+    rows: rows.map((row) => Array.from({ length: columns.length }, (_, column) => row[column] ?? '')),
+  });
+
+  await vscode.window.showTextDocument(document);
+  log().info(
+    `Added ${targets.length} column(s) to ${vscode.workspace.asRelativePath(layoutUri)}: ${labels.join(', ')}.`,
+  );
 }
 
 /** Copy a ready-made cell to the clipboard, for pasting into any layout. */

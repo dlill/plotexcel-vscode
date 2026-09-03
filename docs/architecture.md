@@ -61,7 +61,7 @@ The whole of what plotExcel *is*, with nothing platform-specific in it.
 | `zip/zip.ts` | Deterministic ZIP on `node:zlib`. Also reads, for the Office converters. |
 | `units.ts` | Centimetres to column widths and row heights. `COLUMN_WIDTH_PER_CM = 5.3` and the rest were measured from the R package's own output, not derived. |
 | `build/renderLayout.ts` | Layout in, workbook out. Orchestrates the pipeline, collects issues, reports progress. |
-| `build/generateLayout.ts` | A folder (or two, for a comparison) into a layout. |
+| `build/generateLayout.ts` | A folder (or two, for a comparison) into a layout. Also *n* files or folders side by side, a column each. |
 | `build/exportPdf.ts` | The workbook to PDF, when a converter exists. |
 | `samples/samplePdf.ts` | A real PDF, written by hand, cross-reference table and all. |
 | `samples/sampleProject.ts` | Four plots and a layout, generated so they cannot drift from the code. |
@@ -85,9 +85,9 @@ Every adapter. Each one optional, each one detected, none required.
 
 ---
 
-## packages/extension — 3,000 lines, 26 tests
+## packages/extension — 3,000 lines, 42 tests
 
-25 commands, 54 menu entries, 4 keybindings, a tree view, a walkthrough and
+27 commands, 59 menu entries, 4 keybindings, a tree view, a walkthrough and
 seven editor features. **Never run in a real extension host** — but activated
 in every test run against `test/vscode.cjs`, a recording stub, and checked
 against its own manifest.

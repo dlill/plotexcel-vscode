@@ -60,6 +60,18 @@ faded background and leaves only what changed.
 
 Type `::` and completions appear; hover any cell to see what it resolves to.
 
+## Several things side by side
+
+For a handful of things that are nearly the same — one folder per run, one
+export per week — select them all and right-click → **Lay Out Side by Side…**.
+Each gets a column, and each row is one page, so page 3 of every one of them
+sits on the same row. Folders are paired by the path each file has inside them,
+so a file only some of them hold still gets a row with the gap visible.
+
+To grow a layout afterwards: right-click a plot → **Add to Layout Below** for
+another row, or **Add to Layout as New Column** for another column beside what
+is already there.
+
 ## Comparing things
 
 - Right-click a file or folder → **Select for Visual Diff**, then right-click a

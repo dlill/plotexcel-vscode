@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 
 import {
+  addColumnFromFilesCommand,
   addDiffColumnCommand,
   addToLayoutCommand,
   copyCellCommand,
@@ -16,7 +17,7 @@ import {
   compareWithSelectedCommand,
   selectForDiffCommand,
 } from './commands/compare.ts';
-import { generateLayoutCommand } from './commands/generate.ts';
+import { generateLayoutCommand, layoutSideBySideCommand } from './commands/generate.ts';
 import { checkSetupCommand, clearCacheCommand } from './commands/maintenance.ts';
 import { cropAssistantCommand, previewCellCommand, quickLookCommand } from './commands/preview.ts';
 import { renderCommand } from './commands/render.ts';
@@ -64,7 +65,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   // Making layouts
   register('plotexcel.generateLayout', (uri?: vscode.Uri, uris?: vscode.Uri[]) => generateLayoutCommand(uri, uris));
+  register('plotexcel.layoutSideBySide', (uri?: vscode.Uri, uris?: vscode.Uri[]) => layoutSideBySideCommand(uri, uris));
   register('plotexcel.addToLayout', (uri?: vscode.Uri, uris?: vscode.Uri[]) => addToLayoutCommand(uri, uris));
+  register('plotexcel.addColumnFromFiles', (uri?: vscode.Uri, uris?: vscode.Uri[]) =>
+    addColumnFromFilesCommand(uri, uris),
+  );
   register('plotexcel.insertPlot', () => insertPlotCommand());
   register('plotexcel.copyCell', (uri?: vscode.Uri, uris?: vscode.Uri[]) => copyCellCommand(uri, uris));
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **Lay Out Side by Side.** Select several plots, or several folders, right-click
+  and get a layout with one column each — page 3 of every one of them on the
+  same row. For folders, the files are paired by the path they have inside each
+  folder, so one row is one file and one page. It is the table for a handful of
+  things that are nearly the same: one folder per run, one export per week. No
+  difference column; **Compare** is still the way to get one of those, and
+  **Add a Comparison Column** adds one afterwards.
+- **Add to Layout as New Column.** The other half of adding to a layout: a plot
+  from the next run goes beside what is already there rather than underneath
+  it. Its pages fill downwards, page 1 in the first row, and a file with more
+  pages than the table has rows extends it.
+- **Add to plotExcel Layout is now Add to Layout Below**, because there are two
+  of them and the old name no longer said where.
+
 ## 0.3.1 — 2026-08-31
 
 Nothing you can see. 0.3.0 shipped with a type error in the layout generator's

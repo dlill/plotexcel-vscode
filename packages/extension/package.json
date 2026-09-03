@@ -108,8 +108,18 @@
         "category": "plotExcel"
       },
       {
+        "command": "plotexcel.layoutSideBySide",
+        "title": "Lay Out Side by Side...",
+        "category": "plotExcel"
+      },
+      {
         "command": "plotexcel.addToLayout",
-        "title": "Add to plotExcel Layout",
+        "title": "Add to Layout Below",
+        "category": "plotExcel"
+      },
+      {
+        "command": "plotexcel.addColumnFromFiles",
+        "title": "Add to Layout as New Column",
         "category": "plotExcel"
       },
       {
@@ -242,14 +252,24 @@
           "group": "2_layout@10"
         },
         {
+          "command": "plotexcel.layoutSideBySide",
+          "when": "listMultiSelection && (explorerResourceIsFolder || resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i)",
+          "group": "2_layout@11"
+        },
+        {
           "command": "plotexcel.addToLayout",
           "when": "plotexcel.hasLayout && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
-          "group": "2_layout@11"
+          "group": "2_layout@12"
+        },
+        {
+          "command": "plotexcel.addColumnFromFiles",
+          "when": "plotexcel.hasLayout && !explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
+          "group": "2_layout@13"
         },
         {
           "command": "plotexcel.copyCell",
           "when": "!explorerResourceIsFolder && resourceExtname =~ /^\\.(pdf|png|docx|pptx|xlsx|html|htm)$/i",
-          "group": "2_layout@12"
+          "group": "2_layout@14"
         },
         {
           "command": "plotexcel.selectForDiff",
@@ -400,6 +420,14 @@
         },
         {
           "command": "plotexcel.addToLayout",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.addColumnFromFiles",
+          "when": "false"
+        },
+        {
+          "command": "plotexcel.layoutSideBySide",
           "when": "false"
         },
         {

@@ -399,6 +399,53 @@ Two bugs reported from the first real use, with one cause between them.
   abandon the layout: the files not yet counted fall back to what their own
   structure says. A short layout is a nuisance, and an editable one.
 
+## Laying plots out in columns
+
+Every way of building a layout grew it downwards: **Generate Table Layout**
+emits one row per page in a single column, **Add to Layout** appends rows. The
+only thing producing columns side by side was the compare family, and it takes
+exactly two sides and always adds a difference column — the wrong tool for four
+folders that are one run each.
+
+- **`generateSideBySide` takes any number of sources and adds no difference
+  column.** A difference is defined between a pair, so generalising
+  `generateComparison` to *n* sides would have meant deciding which pair the
+  diff compares. Comparing two things is what Compare is for; this is for
+  reading three or four of them against each other. Anyone who wants a diff on
+  top has **Add a Comparison Column**.
+- **Files or folders, told rather than discovered.** `core` classifies nothing
+  by touching the filesystem — `classify.ts` decides by extension alone — and
+  the caller has already stat'ed the selection to know which menu entry
+  applied, so `kind` is a parameter. It also removes the case nobody wants: a
+  layout of files beside folders.
+- **A folder's pages are counted once, from the first folder that has the
+  file.** Counting each side puts the same file on rows of different heights
+  when two copies disagree, which reads as a rendering fault rather than as a
+  difference. The pairing is by the path inside each folder, as
+  `generateFolderComparison` already does, and a file only some folders have
+  still gets a row: dropping it is how a plot that stopped being produced goes
+  unnoticed.
+- **`distinctLabels` grows a colliding name leftwards.** Column names have to
+  be unique — `parseLayout` reports a repeat as an error, and a diff cell names
+  a column — but the name anyone would pick is the basename, and
+  `run-1/plots.pdf` and `run-2/plots.pdf` share it. Only the names that collide
+  grow, so the table stays readable, and a `(2)` suffix catches what growing
+  cannot separate.
+- **A new column fills in row order, not by matching page numbers.** Page 1
+  goes in the first data row, page 2 in the second; a file longer than the
+  table extends it, a shorter one leaves the tail of its column empty. Reading
+  the `::page` of each row and matching it would be cleverer and would break
+  the first time a row was cropped, renumbered or sorted — which is most of
+  what the editing commands are for.
+- **Add to Layout as New Column takes files only.** A folder as a column would
+  have to pair against the existing rows on their descriptions, which the user
+  is free to have rewritten. A folder goes through Lay Out Side by Side, where
+  the pairing is on paths that are still paths.
+- **Add to Layout became Add to Layout Below.** With a column command beside
+  it, "add to layout" no longer says where. The command id stayed
+  `plotexcel.addToLayout`: nothing keybinds it, and renaming an id for a title
+  change buys nothing.
+
 ## Still open
 
 - **The diff image.** It fades unchanged content, marks changes red and marks

@@ -35,7 +35,7 @@ but say so rather than adding it silently.
 ```
 npm install            # devtools only; the code itself needs nothing
 npm run verify         # everything below, in order — use this before saying done
-npm test               # 252 tests, no VS Code, no build step
+npm test               # 295 tests, no VS Code, no build step
 npm run test:core      # the fast subset, ~3 s
 npm run typecheck      # tsc per package; nothing is emitted
 npm run check:extension  # the extension package, against a vscode stub
@@ -126,7 +126,8 @@ for every format, including PNGs that carry their own dpi metadata.
 
 ## State of things
 
-- 252 tests passing across every package.
+- 295 tests passing across every package, plus six that skip when Ghostscript,
+  poppler or LibreOffice is not installed.
 - `packages/extension` is activated in the tests against a stub, and checked
   against its own manifest — but **never run in a real extension host.**
 - `packages/cli`: tested by running it as a process and reading the output.
