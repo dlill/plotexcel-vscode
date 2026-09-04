@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-09-04
 
 - **A layout no longer quietly stops at four pages.** `plotexcel.nPagesMax`
   capped every file at 4, which was invisible: a seven-page HTML report came out

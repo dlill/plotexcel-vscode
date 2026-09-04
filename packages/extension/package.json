@@ -2,7 +2,7 @@
   "name": "plotexcel",
   "displayName": "plotExcel",
   "description": "Arrange PDF and image plots into an Excel workbook, with cropping, page extraction, git revisions and visual diffs.",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "publisher": "dlill",
   "license": "AGPL-3.0-or-later",
   "icon": "media/icon.png",
