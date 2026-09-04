@@ -65,7 +65,7 @@ const notes = await readFile(changelog, 'utf8');
  * opened with an empty body, which the release workflow then rejects — the
  * failure lands here, before the tag is pushed, rather than in CI.
  */
-const unreleased = /^## +([0-9]+\.[0-9]+\.[0-9]+[^\n]*?)(?: +—)? +unreleased *$/im;
+const unreleased = /^## +(?:[0-9]+\.[0-9]+\.[0-9]+[^\n]*?(?: +—)? +)?unreleased *$/im;
 
 const updated = unreleased.test(notes)
   ? notes.replace(unreleased, `## ${next} — ${today}`)
